@@ -24,6 +24,8 @@ class Transaction extends Model
         'xendit_metadata',
         'midtrans_order_id',
         'midtrans_qr_string',
+        'midtrans_redirect_url',
+        'midtrans_snap_token',
     ];
 
     protected $casts = [

@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use Midtrans\Config;
 use Midtrans\CoreApi;
 use Midtrans\Notification;
+use Midtrans\Snap;
 
 class MidtransService
 {
@@ -120,6 +121,34 @@ class MidtransService
                 'bank' => $response->va_numbers[0]->bank ?? null,
                 'order_id' => $response->order_id ?? null,
                 'status' => $response->transaction_status ?? 'pending',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    public function createSnapPayment(float $amount, string $orderId): array
+    {
+        $params = [
+            'transaction_details' => [
+                'order_id' => $orderId,
+                'gross_amount' => (int) $amount,
+            ],
+            'enabled_payments' => ['gopay'],
+        ];
+
+        try {
+            $response = Snap::createTransaction($params);
+
+            return [
+                'success' => true,
+                'redirect_url' => $response->redirect_url ?? null,
+                'token' => $response->token ?? null,
+                'order_id' => $orderId,
+                'status' => 'pending',
             ];
         } catch (\Exception $e) {
             return [

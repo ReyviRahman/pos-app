@@ -107,7 +107,8 @@ new class extends Component
                 'cart.required' => 'Keranjang belanja masih kosong.',
             ]);
 
-            $this->processMidtransPayment();
+            $this->processSnapPayment();
+
         } else {
             $this->validate([
                 'cart' => 'required|array|min:1',
@@ -266,6 +267,46 @@ new class extends Component
         $this->reset(['cart', 'paid_amount', 'payment_method']);
     }
 
+    protected function processSnapPayment()
+    {
+        $midtransService = app(MidtransService::class);
+        $invoiceNumber = 'INV-'.date('Ymd').'-'.strtoupper(uniqid());
+
+        $result = $midtransService->createSnapPayment($this->total, $invoiceNumber);
+
+        if (! $result['success']) {
+            session()->flash('error', 'Gagal memproses pembayaran: '.$result['message']);
+
+            return;
+        }
+
+        DB::transaction(function () use ($invoiceNumber, $result) {
+            Transaction::create([
+                'invoice_number' => $invoiceNumber,
+                'total_amount' => $this->total,
+                'paid_amount' => $this->total,
+                'change_amount' => 0,
+                'payment_method' => 'midtrans_qris',
+                'status' => 'pending',
+                'xendit_payment_status' => 'PENDING',
+                'midtrans_order_id' => $result['order_id'],
+                'midtrans_redirect_url' => $result['redirect_url'],
+                'midtrans_snap_token' => $result['token'],
+                'xendit_metadata' => ['cart' => json_encode($this->cart)],
+            ]);
+        });
+
+        $this->midtransPayment = [
+            'invoice_number' => $invoiceNumber,
+            'redirect_url' => $result['redirect_url'],
+            'snap_token' => $result['token'],
+            'order_id' => $result['order_id'],
+            'amount' => $this->total,
+        ];
+
+        $this->reset(['cart', 'paid_amount', 'payment_method']);
+    }
+
     protected function deductProductIngredients(array $item, string $invoiceNumber)
     {
         $product = Product::with('ingredients')->find($item['id']);
@@ -374,6 +415,20 @@ new class extends Component
 
             @if($midtransPayment)
                 <div class="mb-6 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="{ polling: true }" x-init="
+                    setTimeout(() => {
+                        snap.pay('{{ $midtransPayment['snap_token'] ?? $midtransPayment['redirect_url'] }}', {
+                            onSuccess: function(result) {
+                                window.location.reload();
+                            },
+                            onPending: function(result) {
+                            },
+                            onError: function(result) {
+                            },
+                            onClose: function() {
+                            }
+                        });
+                    }, 500);
+
                     const checkStatus = setInterval(() => {
                         @this.call('checkMidtransStatus', '{{ $midtransPayment['order_id'] }}').then(result => {
                             if (result === 'completed') {
@@ -388,24 +443,35 @@ new class extends Component
                 ">
                     <div class="flex justify-between items-start">
                         <div>
-                            <h3 class="text-lg font-bold text-gray-700 mb-2">Pembayaran BRI</h3>
+                            <h3 class="text-lg font-bold text-gray-700 mb-2">Selesaikan Pembayaran</h3>
                             <p class="text-gray-600">Invoice: <span class="font-mono">{{ $midtransPayment['invoice_number'] }}</span></p>
                             <p class="text-gray-600">Total: <span class="font-bold text-blue-600">Rp {{ number_format($midtransPayment['amount'], 0, ',', '.') }}</span></p>
-                            @if(!empty($midtransPayment['va_number']))
-                                <p class="text-gray-600 mt-2">Virtual Account: <span class="font-bold text-lg font-mono">{{ $midtransPayment['va_number'] }}</span></p>
-                                <p class="text-sm text-gray-500 mt-1">Bank: {{ $midtransPayment['bank'] }}</p>
-                            @endif
-                            <p class="text-sm text-gray-500 mt-2">Selesaikan pembayaran melalui link berikut:</p>
+                            <p class="text-sm text-gray-500 mt-2">Pilih metode pembayaran (QRIS, GoPay, Transfer Bank, dll) pada popup berikut:</p>
                         </div>
                         <button wire:click="cancelMidtransPayment" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
                     <div class="mt-4 flex flex-col items-center">
-                        @if(!empty($midtransPayment['redirect_url']))
+                        @if(!empty($midtransPayment['snap_token']))
+                            <button @click="snap.pay('{{ $midtransPayment['snap_token'] }}', {
+                                onSuccess: function(result) {
+                                    window.location.reload();
+                                },
+                                onPending: function(result) {
+                                },
+                                onError: function(result) {
+                                },
+                                onClose: function() {
+                                }
+                            })" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition shadow-md">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                Buka Pembayaran
+                            </button>
+                        @elseif(!empty($midtransPayment['redirect_url']))
                             <a href="{{ $midtransPayment['redirect_url'] }}" target="_blank" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition shadow-md">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                Buka Halaman Pembayaran BRI
+                                Buka Halaman Pembayaran
                             </a>
                         @endif
                         <p class="text-sm text-gray-500 mt-3" x-show="polling">Menunggu pembayaran... <span class="inline-block animate-spin">&#x27F3;</span></p>
@@ -495,7 +561,7 @@ new class extends Component
                                     <option value="gopay">Gopay Speaker</option>
                                     <option value="qris">QRIS</option>
                                     <option value="qris_edc">QRIS EDC</option>
-                                    <option value="midtrans_qris">BRI</option>
+                                    <option value="midtrans_qris">Midtrans QRIS</option>
                                     <option value="transfer">Transfer Bank</option>
                                 </select>
                             </div>
