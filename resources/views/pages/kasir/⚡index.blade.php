@@ -414,20 +414,18 @@ new class extends Component
             @endif
 
             @if($midtransPayment)
-                <div class="mb-6 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="{ polling: true, paymentStatus: null, paymentMessage: '' }" x-init="
+                <div class="mb-6 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="{ polling: true, toast: null }" x-init="
                     setTimeout(() => {
                         snap.pay('{{ $midtransPayment['snap_token'] ?? $midtransPayment['redirect_url'] }}', {
                             onSuccess: function(result) {
-                                paymentStatus = 'success';
-                                paymentMessage = 'Pembayaran berhasil!';
+                                toast = { type: 'success', message: 'Pembayaran berhasil!' };
+                                setTimeout(() => window.location.reload(), 2000);
                             },
                             onPending: function(result) {
-                                paymentStatus = 'pending';
-                                paymentMessage = 'Pembayaran masih menunggu konfirmasi.';
+                                toast = { type: 'pending', message: 'Pembayaran masih menunggu konfirmasi.' };
                             },
                             onError: function(result) {
-                                paymentStatus = 'failed';
-                                paymentMessage = 'Pembayaran gagal. Silakan coba lagi.';
+                                toast = { type: 'error', message: 'Pembayaran gagal. Silakan coba lagi.' };
                             },
                             onClose: function() {
                             }
@@ -439,13 +437,12 @@ new class extends Component
                             if (result === 'completed') {
                                 clearInterval(checkStatus);
                                 polling = false;
-                                paymentStatus = 'success';
-                                paymentMessage = 'Pembayaran berhasil dikonfirmasi!';
+                                toast = { type: 'success', message: 'Pembayaran berhasil dikonfirmasi!' };
+                                setTimeout(() => window.location.reload(), 2000);
                             } else if (result === 'failed') {
                                 clearInterval(checkStatus);
                                 polling = false;
-                                paymentStatus = 'failed';
-                                paymentMessage = 'Pembayaran gagal atau kadaluarsa.';
+                                toast = { type: 'error', message: 'Pembayaran gagal atau kadaluarsa.' };
                             }
                         });
                     }, 3000);
@@ -465,16 +462,14 @@ new class extends Component
                         @if(!empty($midtransPayment['snap_token']))
                             <button @click="snap.pay('{{ $midtransPayment['snap_token'] }}', {
                                 onSuccess: function(result) {
-                                    paymentStatus = 'success';
-                                    paymentMessage = 'Pembayaran berhasil!';
+                                    toast = { type: 'success', message: 'Pembayaran berhasil!' };
+                                    setTimeout(() => window.location.reload(), 2000);
                                 },
                                 onPending: function(result) {
-                                    paymentStatus = 'pending';
-                                    paymentMessage = 'Pembayaran masih menunggu konfirmasi.';
+                                    toast = { type: 'pending', message: 'Pembayaran masih menunggu konfirmasi.' };
                                 },
                                 onError: function(result) {
-                                    paymentStatus = 'failed';
-                                    paymentMessage = 'Pembayaran gagal. Silakan coba lagi.';
+                                    toast = { type: 'error', message: 'Pembayaran gagal. Silakan coba lagi.' };
                                 },
                                 onClose: function() {
                                 }
@@ -489,7 +484,6 @@ new class extends Component
                             </a>
                         @endif
                         <p class="text-sm text-gray-500 mt-3" x-show="polling">Menunggu pembayaran... <span class="inline-block animate-spin">&#x27F3;</span></p>
-                        <p class="text-sm text-red-500 mt-3" x-show="!polling && !paymentStatus">Pembayaran gagal atau kadaluarsa.</p>
                     </div>
                     <div class="mt-4 flex justify-center">
                         <button wire:click="cancelMidtransPayment" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-md transition">
@@ -497,55 +491,23 @@ new class extends Component
                         </button>
                     </div>
 
-                    <div x-show="paymentStatus" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
-                        <div @click.away="paymentStatus = null" class="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full mx-4 text-center">
-                            <template x-if="paymentStatus === 'success'">
-                                <div>
-                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                                        <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pembayaran Berhasil!</h3>
-                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
-                                    <button @click="paymentStatus = null; window.location.reload();" class="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition">
-                                        OK
-                                    </button>
-                                </div>
+                    <div x-show="toast" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-2" class="fixed top-4 right-4 z-50 max-w-sm">
+                        <div class="p-4 rounded-lg shadow-lg flex items-center gap-3"
+                             :class="{
+                                'bg-green-500 text-white': toast?.type === 'success',
+                                'bg-red-500 text-white': toast?.type === 'error',
+                                'bg-yellow-500 text-white': toast?.type === 'pending'
+                             }">
+                            <template x-if="toast?.type === 'success'">
+                                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             </template>
-                            <template x-if="paymentStatus === 'failed'">
-                                <div>
-                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                                        <svg class="h-10 w-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pembayaran Gagal</h3>
-                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
-                                    <div class="flex gap-3">
-                                        <button @click="paymentStatus = null" class="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition">
-                                            Tutup
-                                        </button>
-                                        <button @click="paymentStatus = null; snap.pay('{{ $midtransPayment['snap_token'] }}')" class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
-                                            Coba Lagi
-                                        </button>
-                                    </div>
-                                </div>
+                            <template x-if="toast?.type === 'error'">
+                                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </template>
-                            <template x-if="paymentStatus === 'pending'">
-                                <div>
-                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
-                                        <svg class="h-10 w-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Menunggu Pembayaran</h3>
-                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
-                                    <button @click="paymentStatus = null" class="w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition">
-                                        OK
-                                    </button>
-                                </div>
+                            <template x-if="toast?.type === 'pending'">
+                                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </template>
+                            <p class="font-medium text-sm" x-text="toast?.message"></p>
                         </div>
                     </div>
                 </div>
