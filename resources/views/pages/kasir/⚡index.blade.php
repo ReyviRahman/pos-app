@@ -328,7 +328,7 @@ new class extends Component
 <div>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Point of Sale (Kasir)') }}
+            {{ __('Point of Sale (Kasir (MArsaaaa))') }}
         </h2>
     </x-slot>
 
