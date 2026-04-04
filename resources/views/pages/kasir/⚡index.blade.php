@@ -414,15 +414,20 @@ new class extends Component
             @endif
 
             @if($midtransPayment)
-                <div class="mb-6 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="{ polling: true }" x-init="
+                <div class="mb-6 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="{ polling: true, paymentStatus: null, paymentMessage: '' }" x-init="
                     setTimeout(() => {
                         snap.pay('{{ $midtransPayment['snap_token'] ?? $midtransPayment['redirect_url'] }}', {
                             onSuccess: function(result) {
-                                window.location.reload();
+                                paymentStatus = 'success';
+                                paymentMessage = 'Pembayaran berhasil!';
                             },
                             onPending: function(result) {
+                                paymentStatus = 'pending';
+                                paymentMessage = 'Pembayaran masih menunggu konfirmasi.';
                             },
                             onError: function(result) {
+                                paymentStatus = 'failed';
+                                paymentMessage = 'Pembayaran gagal. Silakan coba lagi.';
                             },
                             onClose: function() {
                             }
@@ -433,10 +438,14 @@ new class extends Component
                         @this.call('checkMidtransStatus', '{{ $midtransPayment['order_id'] }}').then(result => {
                             if (result === 'completed') {
                                 clearInterval(checkStatus);
-                                window.location.reload();
+                                polling = false;
+                                paymentStatus = 'success';
+                                paymentMessage = 'Pembayaran berhasil dikonfirmasi!';
                             } else if (result === 'failed') {
                                 clearInterval(checkStatus);
                                 polling = false;
+                                paymentStatus = 'failed';
+                                paymentMessage = 'Pembayaran gagal atau kadaluarsa.';
                             }
                         });
                     }, 3000);
@@ -446,7 +455,7 @@ new class extends Component
                             <h3 class="text-lg font-bold text-gray-700 mb-2">Selesaikan Pembayaran</h3>
                             <p class="text-gray-600">Invoice: <span class="font-mono">{{ $midtransPayment['invoice_number'] }}</span></p>
                             <p class="text-gray-600">Total: <span class="font-bold text-blue-600">Rp {{ number_format($midtransPayment['amount'], 0, ',', '.') }}</span></p>
-                            <p class="text-sm text-gray-500 mt-2">Pilih metode pembayaran (QRIS, GoPay, Transfer Bank, dll) pada popup berikut:</p>
+                            <p class="text-sm text-gray-500 mt-2">Scan QRIS pada popup yang muncul:</p>
                         </div>
                         <button wire:click="cancelMidtransPayment" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -456,17 +465,22 @@ new class extends Component
                         @if(!empty($midtransPayment['snap_token']))
                             <button @click="snap.pay('{{ $midtransPayment['snap_token'] }}', {
                                 onSuccess: function(result) {
-                                    window.location.reload();
+                                    paymentStatus = 'success';
+                                    paymentMessage = 'Pembayaran berhasil!';
                                 },
                                 onPending: function(result) {
+                                    paymentStatus = 'pending';
+                                    paymentMessage = 'Pembayaran masih menunggu konfirmasi.';
                                 },
                                 onError: function(result) {
+                                    paymentStatus = 'failed';
+                                    paymentMessage = 'Pembayaran gagal. Silakan coba lagi.';
                                 },
                                 onClose: function() {
                                 }
                             })" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition shadow-md">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                Buka Pembayaran
+                                Buka Pembayaran Ulang
                             </button>
                         @elseif(!empty($midtransPayment['redirect_url']))
                             <a href="{{ $midtransPayment['redirect_url'] }}" target="_blank" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition shadow-md">
@@ -475,12 +489,64 @@ new class extends Component
                             </a>
                         @endif
                         <p class="text-sm text-gray-500 mt-3" x-show="polling">Menunggu pembayaran... <span class="inline-block animate-spin">&#x27F3;</span></p>
-                        <p class="text-sm text-red-500 mt-3" x-show="!polling">Pembayaran gagal atau kadaluarsa.</p>
+                        <p class="text-sm text-red-500 mt-3" x-show="!polling && !paymentStatus">Pembayaran gagal atau kadaluarsa.</p>
                     </div>
                     <div class="mt-4 flex justify-center">
                         <button wire:click="cancelMidtransPayment" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-md transition">
                             Tutup
                         </button>
+                    </div>
+
+                    <div x-show="paymentStatus" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                        <div @click.away="paymentStatus = null" class="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full mx-4 text-center">
+                            <template x-if="paymentStatus === 'success'">
+                                <div>
+                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                                        <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pembayaran Berhasil!</h3>
+                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
+                                    <button @click="paymentStatus = null; window.location.reload();" class="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition">
+                                        OK
+                                    </button>
+                                </div>
+                            </template>
+                            <template x-if="paymentStatus === 'failed'">
+                                <div>
+                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                                        <svg class="h-10 w-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pembayaran Gagal</h3>
+                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
+                                    <div class="flex gap-3">
+                                        <button @click="paymentStatus = null" class="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition">
+                                            Tutup
+                                        </button>
+                                        <button @click="paymentStatus = null; snap.pay('{{ $midtransPayment['snap_token'] }}')" class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
+                                            Coba Lagi
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="paymentStatus === 'pending'">
+                                <div>
+                                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
+                                        <svg class="h-10 w-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-gray-900 mb-2">Menunggu Pembayaran</h3>
+                                    <p class="text-gray-600 mb-6" x-text="paymentMessage"></p>
+                                    <button @click="paymentStatus = null" class="w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition">
+                                        OK
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
             @endif
