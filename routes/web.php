@@ -25,6 +25,8 @@ Route::middleware('auth', 'verified')->group(function () {
     })->name('dashboard');
 
     Route::livewire('/kasir', 'pages::kasir.index')->name('kasir.index');
+    Route::livewire('/order', 'pages::pos.order-page')->name('order');
+    Route::livewire('/kasir-management', 'pages::kasir-management.index')->name('kasir-management.index');
     Route::livewire('/history', 'pages::history.index')->name('history.index');
     Route::livewire('/products', 'pages::product.index')->name('product.index');
     Route::livewire('/products/create', 'pages::product.create')->name('product.create');

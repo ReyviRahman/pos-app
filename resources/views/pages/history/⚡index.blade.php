@@ -126,6 +126,7 @@ new class extends Component
                         <thead>
                             <tr class="bg-gray-100 border-b border-gray-200 text-gray-600 uppercase text-sm leading-normal">
                                 <th class="py-3 px-6 text-center w-16">No</th>
+                                <th class="py-3 px-6">Username</th>
                                 <th class="py-3 px-6">Invoice</th>
                                 <th class="py-3 px-6">Tanggal</th>
                                 <th class="py-3 px-6 text-right">Total</th>
@@ -139,6 +140,9 @@ new class extends Component
                                 <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
                                     <td class="py-3 px-6 text-center font-medium">
                                         {{ $transactions->firstItem() + $index }}
+                                    </td>
+                                    <td class="py-3 px-6 font-semibold text-gray-800">
+                                        {{ $transaction->username }}
                                     </td>
                                     <td class="py-3 px-6 font-semibold text-gray-800">
                                         {{ $transaction->invoice_number }}

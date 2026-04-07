@@ -126,6 +126,7 @@ new class extends Component
             $invoiceNumber = 'INV-'.date('Ymd').'-'.strtoupper(uniqid());
 
             $transaction = Transaction::create([
+                'username' => auth()->user()->username,
                 'invoice_number' => $invoiceNumber,
                 'total_amount' => $this->total,
                 'paid_amount' => $this->payment_method === 'cash' ? $this->paid_amount : $this->total,
@@ -150,7 +151,7 @@ new class extends Component
         });
 
         $this->reset(['cart', 'paid_amount', 'payment_method']);
-        session()->flash('success', 'Transaksi berhasil! Stok bahan baku telah terpotong otomatis.');
+        session()->flash('success', 'Transaksi berhasil!');
     }
 
     protected function processXenditPayment()
@@ -369,7 +370,7 @@ new class extends Component
 <div>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Point of Sale (Kasir (MArsaaaa))') }}
+            {{ __('Point of Sale') }}
         </h2>
     </x-slot>
 
@@ -586,11 +587,11 @@ new class extends Component
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Metode Pembayaran</label>
                                 <select wire:model="payment_method" class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                                     <option value="cash">Tunai / Cash</option>
-                                    <option value="gopay">Gopay Speaker</option>
-                                    <option value="qris">QRIS</option>
                                     <option value="qris_edc">QRIS EDC</option>
-                                    <option value="midtrans_qris">Midtrans QRIS</option>
-                                    <option value="transfer">Transfer Bank</option>
+                                    {{-- <option value="gopay">Gopay Speaker</option> --}}
+                                    {{-- <option value="qris">QRIS</option> --}}
+                                    {{-- <option value="midtrans_qris">Midtrans QRIS</option>
+                                    <option value="transfer">Transfer Bank</option> --}}
                                 </select>
                             </div>
 

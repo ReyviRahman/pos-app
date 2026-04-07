@@ -10,16 +10,15 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->string('username_cashier'); // Nama cashier yang melakukan transaksi
+            $table->string('customer_name'); // Nama pelanggan
+            $table->string('table_number'); // Nomor meja
             $table->string('invoice_number')->unique(); // Nomor struk unik
             $table->decimal('total_amount', 15, 2)->default(0); // Total belanja
             $table->decimal('paid_amount', 15, 2)->default(0); // Uang yang dibayarkan pelanggan
             $table->decimal('change_amount', 15, 2)->default(0); // Uang kembalian
             $table->string('payment_method')->default('cash'); // cash, qris, transfer, dll
             $table->string('status')->default('completed'); // pending, completed, canceled
-
-            // Opsional: Jika Anda punya sistem multi-kasir/user
-            // $table->foreignId('user_id')->nullable()->constrained('users');
-
             $table->timestamps();
         });
     }

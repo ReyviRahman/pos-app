@@ -11,6 +11,9 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
+        'username_cashier',
+        'customer_name',
+        'table_number',
         'invoice_number',
         'total_amount',
         'paid_amount',
