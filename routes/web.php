@@ -1,15 +1,8 @@
 <?php
 
-use App\Http\Controllers\MidtransWebhookController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\XenditWebhookController;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
-Route::post('/midtrans/notification', [MidtransWebhookController::class, 'handle'])
-    ->withoutMiddleware([VerifyCsrfToken::class])
-    ->name('webhook.midtrans');
 
 Route::get('/', function () {
     return view('welcome');
@@ -19,15 +12,13 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth', 'verified')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
 
-    Route::livewire('/kasir', 'pages::kasir.index')->name('kasir.index');
     Route::livewire('/order', 'pages::pos.order-page')->name('order');
     Route::livewire('/payment', 'pages::pos.payment-page')->name('payment');
-    Route::livewire('/kasir-management', 'pages::kasir-management.index')->name('kasir-management.index');
     Route::livewire('/history', 'pages::history.index')->name('history.index');
     Route::livewire('/products', 'pages::product.index')->name('product.index');
     Route::livewire('/products/create', 'pages::product.create')->name('product.create');
@@ -43,4 +34,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

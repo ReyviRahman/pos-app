@@ -5,10 +5,17 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Email Address -->
+        <!-- Account Selection (Replaces Email Input) -->
         <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
+            <x-input-label for="email" value="Pilih Akun Karyawan" />
+            <select id="email" name="email" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-gray-700" required autofocus>
+                <option value="" disabled selected>-- Pilih Akun --</option>
+                @foreach($users as $user)
+                    <option value="{{ $user->email }}" {{ old('email') == $user->email ? 'selected' : '' }}>
+                        {{ $user->name }} ({{ ucfirst($user->role) }})
+                    </option>
+                @endforeach
+            </select>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 

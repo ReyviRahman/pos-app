@@ -18,13 +18,11 @@ new class extends Component {
     public function openDetail($transactionId)
     {
         $this->selectedTransactionId = $transactionId;
-        $this->dispatch('open-modal', name: 'transaction-detail');
     }
 
     public function closeModal()
     {
         $this->selectedTransactionId = null;
-        $this->dispatch('close-modal', name: 'transaction-detail');
     }
 
     public function resetFilters()
@@ -217,6 +215,7 @@ new class extends Component {
                                     </td>
                                     <td class="py-3 px-6 text-center">
                                         <button wire:click="openDetail({{ $transaction->id }})"
+                                            x-on:click="$dispatch('open-modal', 'transaction-detail')"
                                             class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1 rounded-md transition">
                                             Detail
                                         </button>
@@ -246,7 +245,7 @@ new class extends Component {
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold text-gray-800">Detail Transaksi</h3>
-                    <button wire:click="closeModal" class="text-gray-400 hover:text-gray-600 transition">
+                    <button wire:click="closeModal" x-on:click="$dispatch('close-modal', 'transaction-detail')" class="text-gray-400 hover:text-gray-600 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />
@@ -282,7 +281,7 @@ new class extends Component {
                     <div class="border-t border-gray-200 pt-2 flex justify-between text-sm">
                         <span class="text-gray-700 font-semibold">Total</span>
                         <span class="text-lg font-bold text-gray-800">Rp
-                            {{ number_format($selectedTransaction->total_amount, 0, ',', '.') }}</span>
+                            {{ number_format($selectedTransaction->total_amount ?? 0, 0, ',', '.') }}</span>
                     </div>
                 </div>
 

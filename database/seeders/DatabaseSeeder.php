@@ -15,11 +15,46 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $users = [
+            [
+                'name' => 'Administrator',
+                'email' => 'admin@resto.com',
+                'password' => '12345678',
+                'role' => 'admin',
+                'phone' => '081100000001',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Kasir Utama',
+                'email' => 'kasir@resto.com',
+                'password' => '12345678',
+                'role' => 'kasir',
+                'phone' => '081100000002',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Manajer Operasional',
+                'email' => 'manajer@resto.com',
+                'password' => '12345678',
+                'role' => 'manajer',
+                'phone' => '081100000003',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Chef Kepala',
+                'email' => 'chef@resto.com',
+                'password' => '12345678',
+                'role' => 'chef',
+                'phone' => '081100000004',
+                'is_active' => true,
+            ],
+        ];
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        foreach ($users as $user) {
+            User::updateOrCreate(
+                ['email' => $user['email']],
+                $user
+            );
+        }
     }
 }
