@@ -53,17 +53,32 @@
         <div class="flex flex-col sm:flex-row gap-4 mb-16 w-full justify-center">
             @if (Route::has('login'))
                 @auth
-                    <a href="{{ url('/order') }}      "
-                        class="bg-indigo-600 text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7">
-                            </path>
-                        </svg>
-                        Masuk Terminal Kasir
-                    </a>
-                    <a href="{{ url('/dashboard') }}"
-                        class="bg-white text-slate-700 border border-slate-200 px-8 py-5 rounded-full font-bold text-lg hover:bg-slate-50 hover:border-slate-300 transition-all duration-300">
-                        Manajemen Backoffice
+                    @if(auth()->user()->role === 'waiter')
+                        <a href="{{ route('order') }}"
+                            class="bg-indigo-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Buat Pesanan Baru
+                        </a>
+                    @endif
+
+                    @if(auth()->user()->role === 'kasir')
+                        <a href="{{ route('payment') }}"
+                            class="bg-emerald-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                            Buka POS Kasir
+                        </a>
+                    @endif
+
+                    <a href="{{ route('dashboard') }}"
+                        class="bg-white text-slate-700 border border-slate-200 px-8 py-4 rounded-full font-bold text-lg hover:bg-slate-50 hover:border-slate-300 transition-all duration-300">
+                        Ke Dashboard Lengkap
                     </a>
                 @else
                     <a href="{{ route('login') }}"

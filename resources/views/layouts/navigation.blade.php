@@ -31,43 +31,54 @@
                 Dashboard
             </a>
 
-            <div class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mt-8 mb-3 px-3 flex justify-between items-center">
-                <span>Point of Sales</span>
-            </div>
-
-            <a href="{{ route('order') }}" class="flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('order') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 {{ request()->routeIs('order') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                    Terminal Kasir
+            @if(auth()->user()->role === 'waiter' || auth()->user()->role === 'kasir')
+                <div class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mt-8 mb-3 px-3 flex justify-between items-center">
+                    <span>Point of Sales</span>
                 </div>
-            </a>
+            @endif
 
-            <a href="{{ route('payment') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('payment') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <svg class="w-5 h-5 {{ request()->routeIs('payment') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                Pembayaran
-            </a>
+            @if(auth()->user()->role === 'waiter')
+                <a href="{{ route('order') }}" class="flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('order') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 {{ request()->routeIs('order') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        Order
+                    </div>
+                </a>
+            @endif
 
-            <a href="{{ route('history.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('history.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <svg class="w-5 h-5 {{ request()->routeIs('history.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                Riwayat Transaksi
-            </a>
+            @if(auth()->user()->role === 'kasir')
+                <a href="{{ route('payment') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('payment') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <svg class="w-5 h-5 {{ request()->routeIs('payment') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Pembayaran
+                </a>
+            @endif
 
-            <div class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mt-8 mb-3 px-3">Manajemen Resto</div>
+            @if(in_array(auth()->user()->role, ['kasir', 'admin', 'manajer']))
+                <div class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mt-8 mb-3 px-3">Laporan & Riwayat</div>
+                <a href="{{ route('history.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('history.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <svg class="w-5 h-5 {{ request()->routeIs('history.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    Riwayat Transaksi
+                </a>
+            @endif
 
-            <a href="{{ route('product.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('product.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <svg class="w-5 h-5 {{ request()->routeIs('product.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                Daftar Menu
-            </a>
-            
-            <a href="{{ route('bahan.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('bahan.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <svg class="w-5 h-5 {{ request()->routeIs('bahan.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                Stok Bahan Baku
-            </a>
+            @if(in_array(auth()->user()->role, ['admin', 'manajer']))
+                <div class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mt-8 mb-3 px-3">Manajemen Resto</div>
 
-            <a href="{{ route('inventory-movement.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('inventory-movement.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
-                <svg class="w-5 h-5 {{ request()->routeIs('inventory-movement.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                Mutasi Stok
-            </a>
+                <a href="{{ route('product.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('product.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <svg class="w-5 h-5 {{ request()->routeIs('product.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Daftar Menu
+                </a>
+                
+                <a href="{{ route('bahan.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('bahan.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <svg class="w-5 h-5 {{ request()->routeIs('bahan.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Stok Bahan Baku
+                </a>
+
+                <a href="{{ route('inventory-movement.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('inventory-movement.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <svg class="w-5 h-5 {{ request()->routeIs('inventory-movement.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Mutasi Stok
+                </a>
+            @endif
         </div>
 
         <!-- User Profile & Logout -->

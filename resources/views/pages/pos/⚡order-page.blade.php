@@ -12,6 +12,13 @@ new class extends Component {
     public $table_number = '';
     public $search = '';
 
+    public function mount()
+    {
+        if (auth()->user()->role !== 'waiter') {
+            abort(403, 'Akses Ditolak: Hanya Waiter yang berhak mengakses halaman pemesanan.');
+        }
+    }
+
     // Menggunakan Computed property agar pencarian reaktif
     #[Computed]
     public function products()

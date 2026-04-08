@@ -17,14 +17,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    Route::livewire('/order', 'pages::pos.order-page')->name('order');
-    Route::livewire('/payment', 'pages::pos.payment-page')->name('payment');
-    Route::livewire('/history', 'pages::history.index')->name('history.index');
-    Route::livewire('/products', 'pages::product.index')->name('product.index');
-    Route::livewire('/products/create', 'pages::product.create')->name('product.create');
-    Route::livewire('/products/{id}/edit', 'pages::product.edit')->name('product.edit');
-    Route::livewire('/bahans', 'pages::bahan.index')->name('bahan.index');
-    Route::livewire('/inventory-movement', 'pages::inventory-movement.index')->name('inventory-movement.index');
+    Route::livewire('/order', 'pages::pos.order-page')->middleware('role:waiter')->name('order');
+    Route::livewire('/payment', 'pages::pos.payment-page')->middleware('role:kasir')->name('payment');
+    Route::livewire('/history', 'pages::history.index')->middleware('role:kasir,admin,manajer')->name('history.index');
+    Route::livewire('/products', 'pages::product.index')->middleware('role:admin,manajer')->name('product.index');
+    Route::livewire('/products/create', 'pages::product.create')->middleware('role:admin,manajer')->name('product.create');
+    Route::livewire('/products/{id}/edit', 'pages::product.edit')->middleware('role:admin,manajer')->name('product.edit');
+    Route::livewire('/bahans', 'pages::bahan.index')->middleware('role:admin,manajer')->name('bahan.index');
+    Route::livewire('/inventory-movement', 'pages::inventory-movement.index')->middleware('role:admin,manajer')->name('inventory-movement.index');
 
 });
 

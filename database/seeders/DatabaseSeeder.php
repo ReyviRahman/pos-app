@@ -33,6 +33,14 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'name' => 'Kasir Dua',
+                'email' => 'kasir2@resto.com',
+                'password' => '12345678',
+                'role' => 'kasir',
+                'phone' => '081100000003',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Manajer Operasional',
                 'email' => 'manajer@resto.com',
                 'password' => '12345678',
@@ -46,6 +54,14 @@ class DatabaseSeeder extends Seeder
                 'password' => '12345678',
                 'role' => 'chef',
                 'phone' => '081100000004',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Pelayan Meja',
+                'email' => 'waiter@resto.com',
+                'password' => '12345678',
+                'role' => 'waiter',
+                'phone' => '081100000005',
                 'is_active' => true,
             ],
         ];
