@@ -4,8 +4,7 @@ use App\Models\Transaction;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new class extends Component
-{
+new class extends Component {
     use WithPagination;
 
     public string $search = '';
@@ -39,7 +38,7 @@ new class extends Component
         $query = Transaction::query()->with('details')->latest();
 
         if ($this->search !== '') {
-            $query->where('invoice_number', 'like', '%'.$this->search.'%');
+            $query->where('invoice_number', 'like', '%' . $this->search . '%');
         }
 
         if ($this->start_date !== '') {
@@ -55,7 +54,7 @@ new class extends Component
 
     public function getSelectedTransactionProperty()
     {
-        if (! $this->selectedTransactionId) {
+        if (!$this->selectedTransactionId) {
             return null;
         }
 
@@ -94,21 +93,22 @@ new class extends Component
                     <div class="flex flex-col md:flex-row gap-4 items-end">
                         <div class="flex-1 w-full">
                             <label class="block text-xs font-medium text-gray-500 mb-1">Cari Invoice</label>
-                            <input type="text" wire:model.live.debounce.300ms="search" placeholder="Ketik nomor invoice..."
-                                   class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" wire:model.live.debounce.300ms="search"
+                                placeholder="Ketik nomor invoice..."
+                                class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div class="w-full md:w-48">
                             <label class="block text-xs font-medium text-gray-500 mb-1">Tanggal Mulai</label>
                             <input type="date" wire:model.live="start_date"
-                                   class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div class="w-full md:w-48">
                             <label class="block text-xs font-medium text-gray-500 mb-1">Tanggal Akhir</label>
                             <input type="date" wire:model.live="end_date"
-                                   class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <button wire:click="reset_filters"
-                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-md transition">
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-md transition">
                             Reset
                         </button>
                     </div>
@@ -124,7 +124,8 @@ new class extends Component
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-gray-100 border-b border-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <tr
+                                class="bg-gray-100 border-b border-gray-200 text-gray-600 uppercase text-sm leading-normal">
                                 <th class="py-3 px-6 text-center w-16">No</th>
                                 <th class="py-3 px-6">Username</th>
                                 <th class="py-3 px-6">Invoice</th>
@@ -142,7 +143,7 @@ new class extends Component
                                         {{ $transactions->firstItem() + $index }}
                                     </td>
                                     <td class="py-3 px-6 font-semibold text-gray-800">
-                                        {{ $transaction->username }}
+                                        {{ $transaction->username_cashier }}
                                     </td>
                                     <td class="py-3 px-6 font-semibold text-gray-800">
                                         {{ $transaction->invoice_number }}
@@ -173,7 +174,8 @@ new class extends Component
                                             ];
                                             $method = $transaction->payment_method;
                                         @endphp
-                                        <span class="px-2 py-1 rounded-full text-xs font-bold {{ $methodColors[$method] ?? 'bg-gray-100 text-gray-700' }}">
+                                        <span
+                                            class="px-2 py-1 rounded-full text-xs font-bold {{ $methodColors[$method] ?? 'bg-gray-100 text-gray-700' }}">
                                             {{ $methodLabels[$method] ?? ucfirst($method) }}
                                         </span>
                                     </td>
@@ -191,29 +193,31 @@ new class extends Component
                                             ];
                                             $status = $transaction->status;
                                         @endphp
-                                        <span class="px-2 py-1 rounded-full text-xs font-bold {{ $statusColors[$status] ?? 'bg-gray-100 text-gray-700' }}">
+                                        <span
+                                            class="px-2 py-1 rounded-full text-xs font-bold {{ $statusColors[$status] ?? 'bg-gray-100 text-gray-700' }}">
                                             {{ $statusLabels[$status] ?? ucfirst($status) }}
                                         </span>
                                         @if($transaction->xendit_payment_status && in_array($transaction->payment_method, ['qris', 'transfer', 'midtrans_qris']))
-                                            <div class="mt-1">
-                                                @php
-                                                    $xenditStatusColors = [
-                                                        'SUCCEEDED' => 'bg-green-100 text-green-700',
-                                                        'PENDING' => 'bg-blue-100 text-blue-700',
-                                                        'FAILED' => 'bg-red-100 text-red-700',
-                                                        'EXPIRED' => 'bg-gray-100 text-gray-700',
-                                                        'REQUIRES_ACTION' => 'bg-yellow-100 text-yellow-700',
-                                                    ];
-                                                @endphp
-                                                <span class="px-2 py-0.5 rounded-full text-xs {{ $xenditStatusColors[$transaction->xendit_payment_status] ?? 'bg-gray-100 text-gray-700' }}">
-                                                    {{ $transaction->getPaymentStatusLabel() }}
-                                                </span>
-                                            </div>
+                                                                            <div class="mt-1">
+                                                                                @php
+                                                                                    $xenditStatusColors = [
+                                                                                        'SUCCEEDED' => 'bg-green-100 text-green-700',
+                                                                                        'PENDING' => 'bg-blue-100 text-blue-700',
+                                                                                        'FAILED' => 'bg-red-100 text-red-700',
+                                                                                        'EXPIRED' => 'bg-gray-100 text-gray-700',
+                                                                                        'REQUIRES_ACTION' => 'bg-yellow-100 text-yellow-700',
+                                                                                    ];
+                                                                                @endphp
+                                             <span
+                                                                                    class="px-2 py-0.5 rounded-full text-xs {{ $xenditStatusColors[$transaction->xendit_payment_status] ?? 'bg-gray-100 text-gray-700' }}">
+                                                                                    {{ $transaction->getPaymentStatusLabel() }}
+                                                                                </span>
+                                                                            </div>
                                         @endif
                                     </td>
                                     <td class="py-3 px-6 text-center">
                                         <button wire:click="openDetail({{ $transaction->id }})"
-                                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1 rounded-md transition">
+                                            class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1 rounded-md transition">
                                             Detail
                                         </button>
                                     </td>
@@ -244,7 +248,8 @@ new class extends Component
                     <h3 class="text-lg font-bold text-gray-800">Detail Transaksi</h3>
                     <button wire:click="closeModal" class="text-gray-400 hover:text-gray-600 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -257,7 +262,8 @@ new class extends Component
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Tanggal</span>
-                        <span class="font-semibold text-gray-800">{{ $selectedTransaction->created_at->format('d/m/Y H:i:s') }}</span>
+                        <span
+                            class="font-semibold text-gray-800">{{ $selectedTransaction->created_at->format('d/m/Y H:i:s') }}</span>
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Metode Bayar</span>
@@ -265,15 +271,18 @@ new class extends Component
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Dibayar</span>
-                        <span class="font-semibold text-gray-800">Rp {{ number_format($selectedTransaction->paid_amount, 0, ',', '.') }}</span>
+                        <span class="font-semibold text-gray-800">Rp
+                            {{ number_format($selectedTransaction->paid_amount, 0, ',', '.') }}</span>
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Kembalian</span>
-                        <span class="font-semibold text-green-600">Rp {{ number_format($selectedTransaction->change_amount, 0, ',', '.') }}</span>
+                        <span class="font-semibold text-green-600">Rp
+                            {{ number_format($selectedTransaction->change_amount, 0, ',', '.') }}</span>
                     </div>
                     <div class="border-t border-gray-200 pt-2 flex justify-between text-sm">
                         <span class="text-gray-700 font-semibold">Total</span>
-                        <span class="text-lg font-bold text-gray-800">Rp {{ number_format($selectedTransaction->total_amount, 0, ',', '.') }}</span>
+                        <span class="text-lg font-bold text-gray-800">Rp
+                            {{ number_format($selectedTransaction->total_amount, 0, ',', '.') }}</span>
                     </div>
                 </div>
 
@@ -297,7 +306,8 @@ new class extends Component
                                     <td class="py-2 px-3 font-medium text-gray-800">{{ $detail->product_name }}</td>
                                     <td class="py-2 px-3 text-center">{{ $detail->quantity }}</td>
                                     <td class="py-2 px-3 text-right">Rp {{ number_format($detail->price, 0, ',', '.') }}</td>
-                                    <td class="py-2 px-3 text-right font-semibold">Rp {{ number_format($detail->subtotal, 0, ',', '.') }}</td>
+                                    <td class="py-2 px-3 text-right font-semibold">Rp
+                                        {{ number_format($detail->subtotal, 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

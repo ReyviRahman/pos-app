@@ -22,8 +22,12 @@ new class extends Component
 
     public function addToCart($productId)
     {
-        // Ubah dari $this->products() menjadi $this->products
         $product = $this->products->firstWhere('id', $productId);
+        if (!$product) {
+            $product = Product::find($productId);
+        }
+
+        if (!$product) return;
 
         if (isset($this->cart[$productId])) {
             $this->cart[$productId]['quantity']++;
@@ -82,6 +86,7 @@ new class extends Component
 
         $order = Order::create([
             'order_number' => 'ORD-' . now()->format('YmdHis'),
+            'username_cashier' => auth()->user()->name ?? 'System',
             'customer_name' => $this->customer_name,
             'table_number' => $this->table_number,
             'total_price' => $totalPrice,
@@ -170,7 +175,7 @@ new class extends Component
 
         <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
             @forelse($cart as $id => $item)
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <div wire:key="cart-{{ $id }}" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                     <div class="flex justify-between items-start mb-3">
                         <div>
                             <p class="font-bold text-slate-800">{{ $item['name'] }}</p>
