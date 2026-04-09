@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\User;
-use App\Models\Branch; // Pastikan model Branch di-import
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash; // Opsional: untuk enkripsi password
 
 class DatabaseSeeder extends Seeder
 {
@@ -230,5 +229,10 @@ class DatabaseSeeder extends Seeder
                 $user
             );
         }
+
+        // 4. Seed Karyawan
+        $this->call([
+            KaryawanSeeder::class,
+        ]);
     }
 }

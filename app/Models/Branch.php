@@ -49,4 +49,9 @@ class Branch extends Model
     {
         return $this->hasMany(CashierSession::class);
     }
+
+    public function karyawans()
+    {
+        return $this->hasMany(Karyawan::class);
+    }
 }

@@ -11,15 +11,12 @@ return new class extends Migration
         Schema::create('transaction_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('transaction_id')->constrained('transactions')->cascadeOnDelete();
-
             // nullable/nullOnDelete agar jika produk dihapus dari master, riwayat transaksi tidak error
             $table->foreignId('product_id')->nullable()->constrained('products')->nullOnDelete();
-
             $table->string('product_name'); // Simpan nama produk sebagai histori jaga-jaga jika produk dihapus
             $table->integer('quantity'); // Jumlah produk yang dibeli
             $table->decimal('price', 15, 2); // Harga produk SAAT TRANSAKSI TERJADI
             $table->decimal('subtotal', 15, 2); // quantity * price
-
             $table->timestamps();
         });
     }

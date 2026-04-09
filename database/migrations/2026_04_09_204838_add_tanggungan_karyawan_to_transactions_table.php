@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->text('midtrans_redirect_url')->nullable()->after('midtrans_qr_string');
+            $table->decimal('tanggungan_karyawan', 12, 2)->default(0)->after('potongan_makan');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->dropColumn('midtrans_redirect_url');
+            //
         });
     }
 };

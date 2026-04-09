@@ -3,7 +3,6 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-
 Route::get('/', function () {
     return view('welcome');
 });
@@ -19,6 +18,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('/order', 'pages::pos.order-page')->middleware('role:waiter')->name('order');
     Route::livewire('/payment', 'pages::pos.payment-page')->middleware('role:kasir')->name('payment');
+    Route::livewire('/karyawan-order', 'pages::pos.karyawan-order-page')->middleware('role:kasir')->name('karyawan.order');
     Route::livewire('/history', 'pages::history.index')->middleware('role:kasir,admin,manajer')->name('history.index');
     Route::livewire('/products', 'pages::product.index')->middleware('role:admin,manajer')->name('product.index');
     Route::livewire('/products/create', 'pages::product.create')->middleware('role:admin,manajer')->name('product.create');
@@ -34,4 +34,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

@@ -195,23 +195,6 @@ new class extends Component {
                                             class="px-2 py-1 rounded-full text-xs font-bold {{ $statusColors[$status] ?? 'bg-gray-100 text-gray-700' }}">
                                             {{ $statusLabels[$status] ?? ucfirst($status) }}
                                         </span>
-                                        @if($transaction->xendit_payment_status && in_array($transaction->payment_method, ['qris', 'transfer', 'midtrans_qris']))
-                                                                            <div class="mt-1">
-                                                                                @php
-                                                                                    $xenditStatusColors = [
-                                                                                        'SUCCEEDED' => 'bg-green-100 text-green-700',
-                                                                                        'PENDING' => 'bg-blue-100 text-blue-700',
-                                                                                        'FAILED' => 'bg-red-100 text-red-700',
-                                                                                        'EXPIRED' => 'bg-gray-100 text-gray-700',
-                                                                                        'REQUIRES_ACTION' => 'bg-yellow-100 text-yellow-700',
-                                                                                    ];
-                                                                                @endphp
-                                             <span
-                                                                                    class="px-2 py-0.5 rounded-full text-xs {{ $xenditStatusColors[$transaction->xendit_payment_status] ?? 'bg-gray-100 text-gray-700' }}">
-                                                                                    {{ $transaction->getPaymentStatusLabel() }}
-                                                                                </span>
-                                                                            </div>
-                                        @endif
                                     </td>
                                     <td class="py-3 px-6 text-center">
                                         <button wire:click="openDetail({{ $transaction->id }})"

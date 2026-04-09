@@ -20,6 +20,8 @@ return new class extends Migration
             $table->decimal('change_amount', 15, 2)->default(0); // Uang kembalian
             $table->string('payment_method')->default('cash'); // cash, qris, transfer, dll
             $table->string('status')->default('completed'); // pending, completed, canceled
+            $table->foreignId('karyawan_id')->nullable()->constrained('karyawans')->nullOnDelete();
+            $table->integer('potongan_makan')->default(0);
             $table->timestamps();
         });
     }

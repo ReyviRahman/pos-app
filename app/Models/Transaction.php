@@ -21,22 +21,17 @@ class Transaction extends Model
         'change_amount',
         'payment_method',
         'status',
-        'xendit_payment_request_id',
-        'xendit_payment_url',
-        'xendit_payment_status',
-        'xendit_channel_code',
-        'xendit_metadata',
-        'midtrans_order_id',
-        'midtrans_qr_string',
-        'midtrans_redirect_url',
-        'midtrans_snap_token',
+        'karyawan_id',
+        'potongan_makan',
+        'tanggungan_karyawan',
     ];
 
     protected $casts = [
-        'xendit_metadata' => 'array',
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'change_amount' => 'decimal:2',
+        'potongan_makan' => 'decimal:2',
+        'tanggungan_karyawan' => 'decimal:2',
     ];
 
     public function details(): HasMany
@@ -44,40 +39,8 @@ class Transaction extends Model
         return $this->hasMany(TransactionDetail::class);
     }
 
-    public function isPending(): bool
+    public function karyawan()
     {
-        return $this->xendit_payment_status === 'PENDING' && $this->status !== 'completed';
-    }
-
-    public function isPaid(): bool
-    {
-        return $this->status === 'completed' && $this->xendit_payment_status === 'SUCCEEDED';
-    }
-
-    public function isFailed(): bool
-    {
-        return in_array($this->xendit_payment_status, ['FAILED', 'EXPIRED']);
-    }
-
-    public function getPaymentStatusLabel(): string
-    {
-        return match ($this->xendit_payment_status) {
-            'SUCCEEDED' => 'Lunas',
-            'FAILED' => 'Gagal',
-            'EXPIRED' => 'Kadaluarsa',
-            'REQUIRES_ACTION' => 'Menunggu Aksi',
-            default => 'Menunggu Pembayaran',
-        };
-    }
-
-    public function getPaymentStatusColor(): string
-    {
-        return match ($this->xendit_payment_status) {
-            'SUCCEEDED' => 'green',
-            'FAILED' => 'red',
-            'EXPIRED' => 'gray',
-            'REQUIRES_ACTION' => 'yellow',
-            default => 'blue',
-        };
+        return $this->belongsTo(Karyawan::class);
     }
 }
