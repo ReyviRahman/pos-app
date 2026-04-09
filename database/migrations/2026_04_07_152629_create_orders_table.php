@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -20,6 +19,8 @@ return new class extends Migration
             $table->string('table_number', 10);
             $table->decimal('total_price', 15, 2);
             $table->string('status')->default('unpaid');
+            $table->string('kitchen_status')->default('pending')->after('status');
+            $table->index(['branch_id', 'kitchen_status']);
             $table->timestamps();
         });
     }

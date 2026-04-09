@@ -25,7 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/products/{id}/edit', 'pages::product.edit')->middleware('role:admin,manajer')->name('product.edit');
     Route::livewire('/bahans', 'pages::bahan.index')->middleware('role:admin,manajer')->name('bahan.index');
     Route::livewire('/inventory-movement', 'pages::inventory-movement.index')->middleware('role:admin,manajer')->name('inventory-movement.index');
-
+    Route::livewire('/kitchen', 'pages::kitchen.index')->middleware('role:chef,admin,manajer')->name('kitchen.index');
 });
 
 Route::middleware('auth')->group(function () {

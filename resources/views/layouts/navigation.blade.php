@@ -71,6 +71,25 @@
                 </a>
             @endif
 
+            @if(auth()->user()->role === 'chef')
+                <a href="{{ route('kitchen.index') }}"
+                    class="flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('kitchen.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 {{ request()->routeIs('kitchen.*') ? 'text-indigo-600' : 'text-slate-400' }}"
+                            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                            <g fill="none">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"
+                                    d="M14 30v10c0 6 8 6 8 0V30m0 7h-8" />
+                                <path stroke="currentColor" stroke-width="4"
+                                    d="M14 6a2 2 0 0 1 2-2h16.635c.319 0 .632.075.888.265C34.542 5.025 37.198 7.582 38 14c.773 6.182-1.369 12.364-2.382 14.855c-.288.71-.985 1.145-1.75 1.145H14z" />
+                                <circle cx="22" cy="10" r="2" fill="currentColor" />
+                            </g>
+                        </svg>
+                        Order
+                    </div>
+                </a>
+            @endif
+
             @if(auth()->user()->role === 'kasir')
                 <a href="{{ route('payment') }}"
                     class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('payment') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">

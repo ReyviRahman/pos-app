@@ -26,6 +26,25 @@ new class extends Component {
         return auth()->user()->branch->products()->where('name', 'like', '%' . $this->search . '%')->get();
     }
 
+    #[Computed]
+    public function activeOrders()
+    {
+        return auth()->user()->branch->orders()->with('items.product')
+            ->whereIn('kitchen_status', ['pending', 'cooking', 'completed'])
+            // Urutkan berdasarkan status: completed (1), cooking (2), pending (3)
+            ->orderByRaw("FIELD(kitchen_status, 'completed', 'cooking', 'pending')")
+            // Secondary sort: Jika statusnya sama, urutkan dari yang terbaru
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function markAsServed($orderId)
+    {
+        $order = Order::where('branch_id', auth()->user()->branch_id)->findOrFail($orderId);
+        $order->update(['kitchen_status' => 'served']);
+        $this->dispatch('custom-notify', message: 'Pesanan ditandai sebagai selesai diberikan ke pelanggan!', type: 'success');
+    }
+
     public function submitOrderAlpine($cartData)
     {
         if (empty($cartData)) {
@@ -178,6 +197,85 @@ new class extends Component {
             </div>
         </div>
 
+        <!-- DAFTAR PESANAN AKTIF -->
+        <div wire:poll.5s.visible class="mb-8 hidden sm:block">
+            <h3 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Status Pesanan Aktif
+            </h3>
+            
+            @if(count($this->activeOrders) > 0)
+                <div class="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
+                    @foreach($this->activeOrders as $activeOrder)
+                        <div wire:key="active-order-{{ $activeOrder->id }}" x-data="{ showDetails: false }" class="min-w-[260px] bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex-shrink-0 flex flex-col justify-between relative">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-black text-slate-800">{{ $activeOrder->table_number ? 'Meja ' . $activeOrder->table_number : 'Take Away' }}</p>
+                                    <p class="text-xs font-medium text-slate-500 line-clamp-1">{{ $activeOrder->customer_name }}</p>
+                                </div>
+                                <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-1 rounded-lg">{{ count($activeOrder->items) }} Item</span>
+                            </div>
+                            
+                            <div class="my-2 flex-1">
+                                <button @click="showDetails = true" class="text-xs text-indigo-600 font-bold hover:text-indigo-800 underline flex items-center gap-1 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    Lihat Detail Pesanan
+                                </button>
+                            </div>
+                            
+                            <!-- Modal Detail -->
+                            <div x-show="showDetails" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                                <div @click.outside="showDetails = false" class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl relative" x-transition>
+                                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                        <h4 class="font-bold text-slate-800 text-lg">Detail Pesanan</h4>
+                                        <button @click="showDetails = false" class="text-slate-400 hover:text-rose-500 transition">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                    <div class="p-4 max-h-[60vh] overflow-y-auto">
+                                        <div class="mb-4 bg-indigo-50 text-indigo-800 p-3 rounded-xl border border-indigo-100">
+                                            <span class="font-black block text-base">{{ $activeOrder->table_number ? 'Meja ' . $activeOrder->table_number : 'Take Away' }}</span>
+                                            <span class="text-sm font-medium">Atas Nama: {{ $activeOrder->customer_name }}</span>
+                                        </div>
+                                        <ul class="text-sm text-slate-600 space-y-3">
+                                            @foreach($activeOrder->items as $item)
+                                                <li class="flex justify-between items-start border-b border-slate-50 pb-2">
+                                                    <span class="font-bold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-lg mr-3 shadow-sm">{{ $item->quantity }}x</span>
+                                                    <span class="flex-1 font-medium mt-0.5">{{ $item->product_name ?? ($item->product ? $item->product->name : 'Item') }}</span>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto pt-2 border-t border-slate-100">
+                                @if($activeOrder->kitchen_status === 'pending')
+                                    <div class="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg text-xs font-bold w-full justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Menunggu Dapur
+                                    </div>
+                                @elseif($activeOrder->kitchen_status === 'cooking')
+                                    <div class="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-1.5 rounded-lg text-xs font-bold w-full justify-center">
+                                        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        Sedang Dimasak
+                                    </div>
+                                @elseif($activeOrder->kitchen_status === 'completed')
+                                    <button wire:click="markAsServed({{ $activeOrder->id }})" class="flex items-center justify-center gap-2 text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-lg text-xs font-bold w-full transition shadow-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Siap Dihidangkan & Selesai
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="bg-white/50 border border-slate-200 border-dashed rounded-xl p-4 text-center text-sm font-medium text-slate-400">
+                    Tidak ada pesanan aktif saat ini.
+                </div>
+            @endif
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             @forelse($this->products as $product)
                 <div wire:key="product-{{ $product->id }}"
