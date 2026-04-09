@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class InventoryMovement extends Model
 {
     protected $fillable = [
+        'branch_id',
         'ingredient_id',
         'type',
         'quantity',

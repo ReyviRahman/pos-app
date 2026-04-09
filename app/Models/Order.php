@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Order extends Model
 {
     protected $fillable = [
+        'branch_id',
         'order_number',
         'username_cashier',
         'customer_name',

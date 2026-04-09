@@ -5,18 +5,44 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Account Selection (Replaces Email Input) -->
-        <div>
-            <x-input-label for="email" value="Pilih Akun Karyawan" />
-            <select id="email" name="email" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-gray-700" required autofocus>
-                <option value="" disabled selected>-- Pilih Akun --</option>
-                @foreach($users as $user)
-                    <option value="{{ $user->email }}" {{ old('email') == $user->email ? 'selected' : '' }}>
-                        {{ $user->name }} ({{ ucfirst($user->role) }})
-                    </option>
-                @endforeach
-            </select>
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        <!-- Branch & Account Selection with Alpine.js -->
+        <div x-data="{
+                selectedBranch: '',
+                users: {{ Js::from($users) }},
+                get filteredUsers() {
+                    if (!this.selectedBranch) return [];
+                    return this.users.filter(u => u.branch_id == this.selectedBranch);
+                }
+            }">
+
+            <!-- Select Branch -->
+            <div class="mb-4">
+                <x-input-label for="branch_id" value="Pilih Cabang Tempat Anda Bertugas" />
+                <select id="branch_id" name="branch_id" x-model="selectedBranch" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-gray-700" required autofocus>
+                    <option value="" disabled selected>-- Pilih Cabang --</option>
+                    @foreach($branches as $branch)
+                        <option value="{{ $branch->id }}">
+                            {{ $branch->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Account Selection (Replaces Email Input) -->
+            <div x-show="selectedBranch" x-cloak>
+                <x-input-label for="email" value="Pilih Akun Karyawan" />
+                <select id="email" name="email" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-gray-700" required>
+                    <option value="" disabled selected>-- Pilih Akun --</option>
+                    <template x-for="user in filteredUsers" :key="user.id">
+                        <option :value="user.email" x-text="`${user.name} (${user.role.charAt(0).toUpperCase() + user.role.slice(1)})`" :selected="user.email == '{{ old('email') }}'"></option>
+                    </template>
+                </select>
+                <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            </div>
+            
+            <p x-show="selectedBranch && filteredUsers.length === 0" x-cloak class="mt-2 text-sm text-red-600">
+                Tidak ada karyawan yang terdaftar di cabang ini.
+            </p>
         </div>
 
         <!-- Password -->

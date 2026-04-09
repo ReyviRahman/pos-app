@@ -10,6 +10,7 @@ class CashierSession extends Model
     use HasFactory;
 
     protected $fillable = [
+        'branch_id',
         'user_id',
         'started_at',
         'ended_at',

@@ -16,8 +16,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        $users = \App\Models\User::where('is_active', true)->get();
-        return view('auth.login', compact('users'));
+        $branches = \App\Models\Branch::all();
+        $users = \App\Models\User::where('is_active', true)->with('branch')->get();
+        return view('auth.login', compact('users', 'branches'));
     }
 
     /**

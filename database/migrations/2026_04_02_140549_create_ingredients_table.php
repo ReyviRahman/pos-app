@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('ingredients', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->string('name');
             $table->integer('current_stock')->default(0);
             $table->string('unit');

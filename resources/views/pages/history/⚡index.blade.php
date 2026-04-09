@@ -33,7 +33,7 @@ new class extends Component {
 
     public function getTransactionsProperty()
     {
-        $query = Transaction::query()->with('details')->latest();
+        $query = auth()->user()->branch->transactions()->with('details')->latest();
 
         if ($this->search !== '') {
             $query->where('invoice_number', 'like', '%' . $this->search . '%');
@@ -56,7 +56,7 @@ new class extends Component {
             return null;
         }
 
-        return Transaction::with('details')->find($this->selectedTransactionId);
+        return auth()->user()->branch->transactions()->with('details')->find($this->selectedTransactionId);
     }
 
     public function with(): array

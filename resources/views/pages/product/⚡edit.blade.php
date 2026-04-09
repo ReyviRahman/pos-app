@@ -23,7 +23,7 @@ new class extends Component
 
     public function mount($id)
     {
-        $this->product = Product::with('ingredients')->findOrFail($id);
+        $this->product = auth()->user()->branch->products()->with('ingredients')->findOrFail($id);
         $this->name = $this->product->name;
         $this->price = $this->product->price;
 
@@ -104,7 +104,7 @@ new class extends Component
             'newIngredientUnit' => 'required|string|max:50',
         ]);
 
-        Ingredient::create([
+        auth()->user()->branch->ingredients()->create([
             'name' => $this->newIngredientName,
             'unit' => $this->newIngredientUnit,
         ]);
@@ -116,7 +116,7 @@ new class extends Component
     public function with(): array
     {
         return [
-            'availableIngredients' => Ingredient::orderBy('name')->get(),
+            'availableIngredients' => auth()->user()->branch->ingredients()->orderBy('name')->get(),
         ];
     }
 };

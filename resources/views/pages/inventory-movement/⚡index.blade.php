@@ -45,7 +45,7 @@ new class extends Component
             $priceInput = $this->price_per_unit !== '' ? $this->price_per_unit : null;
 
             // 1. Simpan riwayat pergerakan (Movement) TERMASUK HARGA
-            InventoryMovement::create([
+            auth()->user()->branch->inventoryMovements()->create([
                 'ingredient_id' => $this->ingredient_id,
                 'type' => $this->type,
                 'quantity' => $this->quantity,
@@ -77,8 +77,8 @@ new class extends Component
     public function with(): array
     {
         return [
-            'movements' => InventoryMovement::with('ingredient')->latest()->get(),
-            'ingredients' => Ingredient::orderBy('name')->get(),
+            'movements' => auth()->user()->branch->inventoryMovements()->with('ingredient')->latest()->get(),
+            'ingredients' => auth()->user()->branch->ingredients()->orderBy('name')->get(),
         ];
     }
 };

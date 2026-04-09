@@ -10,7 +10,7 @@ new class extends Component
     {
         // Eager load 'ingredients' untuk menghindari masalah N+1 query
         return [
-            'products' => Product::with('ingredients')->latest()->get(),
+            'products' => auth()->user()->branch->products()->with('ingredients')->latest()->get(),
         ];
     }
 };

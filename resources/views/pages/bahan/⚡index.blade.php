@@ -88,7 +88,7 @@ new class extends Component
     public function with(): array
     {
         return [
-            'ingredients' => Ingredient::latest()->get(),
+            'ingredients' => auth()->user()->branch->ingredients()->latest()->get(),
         ];
     }
 };

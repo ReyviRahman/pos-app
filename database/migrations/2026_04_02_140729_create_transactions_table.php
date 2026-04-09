@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->string('username_cashier'); // Nama cashier yang melakukan transaksi
             $table->string('customer_name'); // Nama pelanggan
             $table->string('table_number'); // Nomor meja

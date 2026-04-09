@@ -16,6 +16,7 @@ class Ingredient extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'branch_id',
         'name',
         'current_stock',
         'unit',

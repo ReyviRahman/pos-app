@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('inventory_movements', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->foreignId('ingredient_id')->constrained()->cascadeOnDelete();
             $table->string('type');
             $table->integer('quantity');

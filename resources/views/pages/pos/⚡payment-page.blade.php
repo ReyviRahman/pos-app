@@ -33,7 +33,7 @@ new class extends Component {
 
     public function checkShiftStatus()
     {
-        $globalActive = \App\Models\CashierSession::whereNull('ended_at')->first();
+        $globalActive = auth()->user()->branch->cashierSessions()->whereNull('ended_at')->first();
 
         if (!$globalActive) {
             $this->globalShiftStatus = '';
@@ -53,7 +53,7 @@ new class extends Component {
     {
         if (!$this->activeShift) return 0;
         
-        $cashTransactions = Transaction::where('payment_method', 'cash')
+        $cashTransactions = auth()->user()->branch->transactions()->where('payment_method', 'cash')
             ->where('status', 'completed')
             ->where('created_at', '>=', $this->activeShift->started_at)
             ->sum(DB::raw('paid_amount - change_amount'));
@@ -70,13 +70,13 @@ new class extends Component {
             'initial_cash.min' => 'Modal awal tidak boleh negatif!',
         ]);
 
-        $globalActive = \App\Models\CashierSession::whereNull('ended_at')->first();
+        $globalActive = auth()->user()->branch->cashierSessions()->whereNull('ended_at')->first();
         if ($globalActive) {
             $this->checkShiftStatus();
             return;
         }
 
-        $this->activeShift = \App\Models\CashierSession::create([
+        $this->activeShift = auth()->user()->branch->cashierSessions()->create([
             'user_id' => auth()->id(),
             'started_at' => now(),
             'initial_cash' => $this->initial_cash ?: 0,
@@ -126,9 +126,14 @@ new class extends Component {
             return;
         }
 
-        $this->selectedOrder = Order::with('items.product')->find($orderId);
+        // PERBAIKAN KEAMANAN: Kunci by branch & cegah double-payment
+        $this->selectedOrder = auth()->user()->branch->orders()
+            ->with('items.product')
+            ->where('status', 'unpaid') // Memastikan order belum dibayar sebelumnya
+            ->find($orderId);
+
         if (!$this->selectedOrder) {
-            session()->flash('error', 'Silakan pilih pesanan terlebih dahulu.');
+            session()->flash('error', 'Pesanan tidak ditemukan, bukan milik cabang ini, atau sudah dibayar.');
             return;
         }
 
@@ -165,7 +170,7 @@ new class extends Component {
         DB::transaction(function () {
             $invoiceNumber = 'INV-' . date('Ymd') . '-' . strtoupper(uniqid());
 
-            $transaction = Transaction::create([
+            $transaction = auth()->user()->branch->transactions()->create([
                 'username_cashier' => auth()->user()->name ?? 'System',
                 'customer_name' => $this->selectedOrder->customer_name,
                 'table_number' => $this->selectedOrder->table_number,
@@ -198,7 +203,7 @@ new class extends Component {
         $this->reset(['cart', 'paid_amount', 'payment_method', 'selectedOrder']);
         session()->flash('success', 'Transaksi berhasil!');
 
-        $newOrders = Order::with('items.product')->where('status', 'unpaid')->orderBy('created_at', 'asc')->get()->toArray();
+        $newOrders = auth()->user()->branch->orders()->with('items.product')->where('status', 'unpaid')->orderBy('created_at', 'asc')->get()->toArray();
         $this->dispatch('transaction-completed', orders: $newOrders);
     }
 
@@ -209,7 +214,7 @@ new class extends Component {
             foreach ($product->ingredients as $ingredient) {
                 $totalIngredientUsed = $item['qty'] * $ingredient->pivot->quantity_used;
 
-                InventoryMovement::create([
+                auth()->user()->branch->inventoryMovements()->create([
                     'ingredient_id' => $ingredient->id,
                     'type' => 'out',
                     'quantity' => $totalIngredientUsed,
@@ -225,7 +230,7 @@ new class extends Component {
     public function with(): array
     {
         return [
-            'unpaidOrders' => Order::with('items.product')->where('status', 'unpaid')->orderBy('created_at', 'asc')->get(),
+            'unpaidOrders' => auth()->user()->branch->orders()->with('items.product')->where('status', 'unpaid')->orderBy('created_at', 'asc')->get(),
         ];
     }
 };

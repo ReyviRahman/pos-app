@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('cashier_sessions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->timestamp('started_at');
             $table->timestamp('ended_at')->nullable();

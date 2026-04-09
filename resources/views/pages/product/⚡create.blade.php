@@ -59,7 +59,7 @@ new class extends Component
         // 2. Gunakan DB Transaction
         DB::transaction(function () {
             // Simpan Product baru
-            $product = Product::create([
+            $product = auth()->user()->branch->products()->create([
                 'name' => $this->name,
                 'price' => $this->price,
             ]);
@@ -106,7 +106,7 @@ new class extends Component
         ]);
 
         // Simpan ke database
-        Ingredient::create([
+        auth()->user()->branch->ingredients()->create([
             'name' => $this->newIngredientName,
             'unit' => $this->newIngredientUnit,
         ]);
@@ -120,7 +120,7 @@ new class extends Component
     public function with(): array
     {
         return [
-            'availableIngredients' => Ingredient::orderBy('name')->get(),
+            'availableIngredients' => auth()->user()->branch->ingredients()->orderBy('name')->get(),
         ];
     }
 };

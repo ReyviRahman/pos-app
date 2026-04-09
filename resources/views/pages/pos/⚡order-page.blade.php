@@ -23,7 +23,7 @@ new class extends Component {
     #[Computed]
     public function products()
     {
-        return Product::where('name', 'like', '%' . $this->search . '%')->get();
+        return auth()->user()->branch->products()->where('name', 'like', '%' . $this->search . '%')->get();
     }
 
     public function submitOrderAlpine($cartData)
@@ -33,9 +33,7 @@ new class extends Component {
             return;
         }
 
-        $this->cart = $cartData;
-
-        // Validasi input
+        // Validasi input nama dan nomor meja
         $this->validate([
             'customer_name' => 'required|string|max:255',
             'table_number' => 'required|string|max:10',
@@ -44,26 +42,64 @@ new class extends Component {
             'table_number.required' => 'Nomor meja wajib diisi.',
         ]);
 
-        $totalPrice = collect($this->cart)->sum(function ($item) {
-            return $item['price'] * $item['quantity'];
-        });
+        // 1. Ambil semua ID produk yang dikirim dari browser
+        $productIds = collect($cartData)->pluck('id')->toArray();
 
-        $order = Order::create([
+        // 2. QUERY DATABASE: Ambil HANYA produk yang ADA di CABANG USER SAAT INI
+        // Ini mengamankan celah "produk cabang lain"
+        $validProducts = auth()->user()->branch->products()
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id'); // Jadikan ID sebagai key agar mudah dicari
+
+        $totalPrice = 0;
+        $validOrderItems = [];
+
+        // 3. Looping data cart dari frontend, tapi bandingkan dengan data valid dari database
+        foreach ($cartData as $item) {
+            $productId = $item['id'];
+
+            // Jika ID produk dimanipulasi dan tidak ada di cabang ini, lewati!
+            if (!$validProducts->has($productId)) {
+                continue;
+            }
+
+            $product = $validProducts[$productId];
+            $quantity = (int) $item['quantity'];
+
+            if ($quantity <= 0)
+                continue; // Mencegah quantity minus
+
+            // AMBIL HARGA DARI DATABASE, BUKAN DARI FRONTEND
+            $totalPrice += ($product->price * $quantity);
+
+            $validOrderItems[] = [
+                'product_id' => $product->id,
+                'quantity' => $quantity,
+                'price' => $product->price, // Harga asli dari DB
+            ];
+        }
+
+        // Jika setelah divalidasi ternyata kosong (semua ID palsu)
+        if (empty($validOrderItems)) {
+            $this->dispatch('custom-notify', message: 'Produk tidak valid!', type: 'error');
+            return;
+        }
+
+        // 4. Buat Order (Tetap aman seperti kodemu sebelumnya)
+        $order = auth()->user()->branch->orders()->create([
             'order_number' => 'ORD-' . now()->format('YmdHis'),
             'username_cashier' => auth()->user()->name ?? 'System',
             'customer_name' => $this->customer_name,
             'table_number' => $this->table_number,
-            'total_price' => $totalPrice,
+            'total_price' => $totalPrice, // Total harga yang sudah dihitung ulang dari DB
             'status' => 'unpaid',
         ]);
 
-        foreach ($this->cart as $item) {
-            OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $item['id'],
-                'quantity' => $item['quantity'],
-                'price' => $item['price'],
-            ]);
+        // 5. Masukkan item yang sudah valid
+        foreach ($validOrderItems as $itemData) {
+            $itemData['order_id'] = $order->id;
+            OrderItem::create($itemData);
         }
 
         $this->reset(['cart', 'customer_name', 'table_number', 'search']);
@@ -75,11 +111,11 @@ new class extends Component {
 ?>
 
 <div class="flex flex-col lg:flex-row min-h-screen lg:h-screen bg-slate-50 font-sans relative lg:overflow-hidden"
-    x-data="orderCart()" @cart-cleared.window="cart = {}" @custom-notify.window="showNotification($event.detail.message, $event.detail.type)">
+    x-data="orderCart()" @cart-cleared.window="cart = {}"
+    @custom-notify.window="showNotification($event.detail.message, $event.detail.type)">
 
     <!-- TOAST SUCCESS -->
-    <div x-cloak x-show="toastType === 'success'" 
-        x-transition:enter="transition ease-out duration-300"
+    <div x-cloak x-show="toastType === 'success'" x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0 transform translate-x-8"
         x-transition:enter-end="opacity-100 transform translate-x-0"
         x-transition:leave="transition ease-in duration-200"
@@ -96,13 +132,14 @@ new class extends Component {
             <span class="font-medium text-emerald-100 text-sm" x-text="toastMessage"></span>
         </div>
         <button @click="toastType = ''" class="ml-auto text-emerald-200 hover:text-white transition focus:outline-none">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
         </button>
     </div>
 
     <!-- TOAST ERROR -->
-    <div x-cloak x-show="toastType === 'error'"
-        x-transition:enter="transition ease-out duration-300"
+    <div x-cloak x-show="toastType === 'error'" x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0 transform translate-x-8"
         x-transition:enter-end="opacity-100 transform translate-x-0"
         x-transition:leave="transition ease-in duration-200"
@@ -111,7 +148,8 @@ new class extends Component {
         class="fixed top-8 right-4 lg:right-8 bg-rose-600 text-white px-5 sm:px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-4 min-w-[280px] sm:min-w-[320px] ring-4 ring-rose-500/30">
         <div class="bg-rose-500/50 p-2 sm:p-2.5 rounded-full flex-shrink-0">
             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
         </div>
         <div class="flex flex-col">
@@ -119,7 +157,9 @@ new class extends Component {
             <span class="font-medium text-rose-100 text-sm" x-text="toastMessage"></span>
         </div>
         <button @click="toastType = ''" class="ml-auto text-rose-200 hover:text-white transition focus:outline-none">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
         </button>
     </div>
 
@@ -258,7 +298,7 @@ new class extends Component {
                 toastMessage: '',
                 toastType: '',
                 toastTimeout: null,
-                
+
                 showNotification(message, type) {
                     this.toastMessage = message;
                     this.toastType = type;
