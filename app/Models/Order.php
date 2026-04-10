@@ -18,6 +18,7 @@ class Order extends Model
         'karyawan_id',
         'dibayar_perusahaan',
         'metode_pembayaran_karyawan',
+        'note',
     ];
 
     public function items()

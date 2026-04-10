@@ -11,6 +11,8 @@ new class extends Component {
     public $customer_name = '';
     public $table_number = '';
     public $search = '';
+    public $selected_order_id = null;
+    public $note = '';
 
     public function mount()
     {
@@ -38,16 +40,53 @@ new class extends Component {
             ->get();
     }
 
+    public function selectActiveOrder($orderId)
+    {
+        $order = auth()->user()->branch->orders()->with('items.product')->findOrFail($orderId);
+        $this->selected_order_id = $order->id;
+        $this->customer_name = $order->customer_name;
+        $this->table_number = $order->table_number;
+        $this->note = $order->note;
+        
+        $cartItems = [];
+        foreach ($order->items as $item) {
+            if ($item->product) {
+                if (isset($cartItems[$item->product_id])) {
+                    $cartItems[$item->product_id]['quantity'] += $item->quantity;
+                } else {
+                    $cartItems[$item->product_id] = [
+                        'id' => $item->product_id,
+                        'name' => $item->product->name,
+                        'price' => $item->price,
+                        'quantity' => $item->quantity,
+                    ];
+                }
+            }
+        }
+        $this->dispatch('load-cart-items', items: array_values($cartItems));
+        $this->dispatch('custom-notify', message: 'Pesanan dimuat ke keranjang untuk diedit', type: 'success');
+    }
+
+    public function clearSelectedOrder()
+    {
+        $this->selected_order_id = null;
+        $this->customer_name = '';
+        $this->table_number = '';
+        $this->note = '';
+        $this->dispatch('custom-notify', message: 'Batal menambahkan ke pesanan yang ada', type: 'success');
+    }
+
     public function markAsServed($orderId)
     {
         $order = Order::where('branch_id', auth()->user()->branch_id)->findOrFail($orderId);
         $order->update(['kitchen_status' => 'served']);
+        $order->items()->update(['kitchen_status' => 'served']);
         $this->dispatch('custom-notify', message: 'Pesanan ditandai sebagai selesai diberikan ke pelanggan!', type: 'success');
     }
 
     public function submitOrderAlpine($cartData)
     {
-        if (empty($cartData)) {
+        if (empty($cartData) && !$this->selected_order_id) {
             $this->dispatch('custom-notify', message: 'Pilih minimal satu menu dulu!', type: 'error');
             return;
         }
@@ -99,39 +138,142 @@ new class extends Component {
             ];
         }
 
-        // Jika setelah divalidasi ternyata kosong (semua ID palsu)
-        if (empty($validOrderItems)) {
+        // Jika setelah divalidasi ternyata kosong, padahal cartData dikirim (semua ID palsu)
+        if (empty($validOrderItems) && !empty($cartData)) {
             $this->dispatch('custom-notify', message: 'Produk tidak valid!', type: 'error');
             return;
         }
 
-        // 4. Buat Order (Tetap aman seperti kodemu sebelumnya)
-        $order = auth()->user()->branch->orders()->create([
-            'order_number' => 'ORD-' . now()->format('YmdHis'),
-            'username_cashier' => auth()->user()->name ?? 'System',
-            'customer_name' => $this->customer_name,
-            'table_number' => $this->table_number,
-            'total_price' => $totalPrice, // Total harga yang sudah dihitung ulang dari DB
-            'status' => 'unpaid',
-        ]);
+        // 4. Buat / Update Order
+        if ($this->selected_order_id) {
+            // UPDATE EXISTING ORDER
+            $order = auth()->user()->branch->orders()->find($this->selected_order_id);
+            if (!$order) {
+                $this->dispatch('custom-notify', message: 'Order tidak ditemukan!', type: 'error');
+                return;
+            }
 
-        // 5. Masukkan item yang sudah valid
-        foreach ($validOrderItems as $itemData) {
-            $itemData['order_id'] = $order->id;
-            OrderItem::create($itemData);
+            // TOTAL HARGA langsung dioverride sesuai state keranjang saat ini
+            $order->total_price = $totalPrice;
+            $order->customer_name = $this->customer_name;
+            $order->table_number = $this->table_number;
+            $order->note = $this->note;
+
+            // Logic Sinkronisasi per produk
+            $existingItems = OrderItem::with('product')->where('order_id', $order->id)->get()->groupBy('product_id');
+            
+            // Validasi: Jangan biarkan mengurangi QTY di bawah jumlah yang sudah terlanjur diproses dapur
+            foreach ($existingItems as $productId => $oldItems) {
+                $alreadyProcessedQty = collect($oldItems)->whereIn('kitchen_status', ['cooking', 'completed', 'served'])->sum('quantity');
+                
+                if ($alreadyProcessedQty > 0) {
+                    $newQty = 0;
+                    foreach ($validOrderItems as $vvi) {
+                        if ($vvi['product_id'] == $productId) {
+                            $newQty = $vvi['quantity'];
+                            break;
+                        }
+                    }
+                    
+                    if ($newQty < $alreadyProcessedQty) {
+                        $productName = collect($oldItems)->first()->product->name ?? 'Menu';
+                        $this->dispatch('custom-notify', message: "Gagal! {$productName} sudah diproses dapur sebanyak {$alreadyProcessedQty} porsi. Tidak bisa diperbarui di bawah angka tersebut.", type: 'error');
+                        return;
+                    }
+                }
+            }
+
+            $newProductIds = collect($validOrderItems)->pluck('product_id')->toArray();
+            
+            // 1. Hapus produk yang tidak ada di keranjang baru
+            $productIdsToRemove = $existingItems->keys()->diff($newProductIds);
+            foreach ($productIdsToRemove as $pid) {
+                OrderItem::where('order_id', $order->id)->where('product_id', $pid)->delete();
+            }
+
+            $addedNewItems = false;
+
+            // 2. Adjust Kuantitas
+            foreach ($validOrderItems as $itemData) {
+                $newQty = $itemData['quantity'];
+                $oldItems = $existingItems->get($itemData['product_id'], collect());
+                $oldQty = $oldItems->sum('quantity');
+
+                if ($newQty > $oldQty) {
+                    $addedNewItems = true;
+                    // Tambah kekurangannya sebagai item baru (status pending)
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $itemData['product_id'],
+                        'quantity' => $newQty - $oldQty,
+                        'price' => $itemData['price'],
+                        'kitchen_status' => 'pending'
+                    ]);
+                } elseif ($newQty < $oldQty) {
+                    $qtyToRemove = $oldQty - $newQty;
+                    // Prioritaskan menghapus status pending terlebih dahulu
+                    $sortedOld = $oldItems->sortByDesc(function ($i) {
+                        return $i->kitchen_status === 'pending' ? 3 : ($i->kitchen_status === 'cooking' ? 2 : 1);
+                    });
+
+                    foreach ($sortedOld as $oldI) {
+                        if ($qtyToRemove <= 0) break;
+                        if ($oldI->quantity <= $qtyToRemove) {
+                            $qtyToRemove -= $oldI->quantity;
+                            $oldI->delete();
+                        } else {
+                            $oldI->quantity -= $qtyToRemove;
+                            $oldI->save();
+                            $qtyToRemove = 0;
+                        }
+                    }
+                }
+            }
+
+            // Ubah status dapur ke pending HANYA jika ada unit tambahan baru
+            if ($addedNewItems) {
+                if ($order->kitchen_status === 'completed' || $order->kitchen_status === 'served') {
+                    $order->kitchen_status = 'pending';
+                }
+            }
+            $order->save();
+
+            $this->dispatch('custom-notify', message: 'Pesanan berhasil diupdate!', type: 'success');
+        } else {
+            // BUAT ORDER BARU (Tetap aman seperti kodemu sebelumnya)
+            $order = auth()->user()->branch->orders()->create([
+                'order_number' => 'ORD-' . now()->format('YmdHis'),
+                'username_cashier' => auth()->user()->name ?? 'System',
+                'customer_name' => $this->customer_name,
+                'table_number' => $this->table_number,
+                'total_price' => $totalPrice, // Total harga yang sudah dihitung ulang dari DB
+                'status' => 'unpaid',
+                'note' => $this->note,
+            ]);
+
+            // 5. Masukkan item yang sudah valid
+            foreach ($validOrderItems as $itemData) {
+                $itemData['order_id'] = $order->id;
+                OrderItem::create($itemData);
+            }
+            $this->dispatch('custom-notify', message: 'Pesanan baru berhasil dikirim ke dapur!', type: 'success');
         }
 
-        $this->reset(['cart', 'customer_name', 'table_number', 'search']);
-
-        $this->dispatch('custom-notify', message: 'Pesanan berhasil dikirim ke dapur!', type: 'success');
+        $this->reset(['cart', 'customer_name', 'table_number', 'search', 'selected_order_id', 'note']);
         $this->dispatch('cart-cleared');
     }
 };
 ?>
 
-<div class="flex flex-col lg:flex-row min-h-screen lg:h-screen bg-slate-50 font-sans relative lg:overflow-hidden"
+<div class="flex flex-col lg:flex-row min-h-screen lg:min-h-screen bg-slate-50 font-sans relative lg:overflow-hidden"
     x-data="orderCart()" @cart-cleared.window="cart = {}"
-    @custom-notify.window="showNotification($event.detail.message, $event.detail.type)">
+    @custom-notify.window="showNotification($event.detail.message, $event.detail.type)"
+    @load-cart-items.window="
+        cart = {};
+        $event.detail.items.forEach(item => {
+            cart[item.id] = item;
+        });
+    ">
 
     <!-- TOAST SUCCESS -->
     <div x-cloak x-show="toastType === 'success'" x-transition:enter="transition ease-out duration-300"
@@ -216,11 +358,17 @@ new class extends Component {
                                 <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-1 rounded-lg">{{ count($activeOrder->items) }} Item</span>
                             </div>
                             
-                            <div class="my-2 flex-1">
+                            <div class="my-2 flex-1 flex flex-col items-start gap-2">
                                 <button @click="showDetails = true" class="text-xs text-indigo-600 font-bold hover:text-indigo-800 underline flex items-center gap-1 transition">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     Lihat Detail Pesanan
                                 </button>
+                                @if($activeOrder->status === 'unpaid')
+                                <button type="button" wire:click="selectActiveOrder({{ $activeOrder->id }})" class="text-xs text-emerald-600 font-bold hover:text-emerald-800 underline flex items-center gap-1 transition w-fit">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                    Edit Data Pesanan
+                                </button>
+                                @endif
                             </div>
                             
                             <!-- Modal Detail -->
@@ -236,6 +384,11 @@ new class extends Component {
                                         <div class="mb-4 bg-indigo-50 text-indigo-800 p-3 rounded-xl border border-indigo-100">
                                             <span class="font-black block text-base">{{ $activeOrder->table_number ? 'Meja ' . $activeOrder->table_number : 'Take Away' }}</span>
                                             <span class="text-sm font-medium">Atas Nama: {{ $activeOrder->customer_name }}</span>
+                                            @if($activeOrder->note)
+                                                <div class="mt-2 text-sm text-indigo-700 bg-white/50 p-2.5 rounded border border-indigo-200">
+                                                    <strong>Catatan:</strong> {{ $activeOrder->note }}
+                                                </div>
+                                            @endif
                                         </div>
                                         <ul class="text-sm text-slate-600 space-y-3">
                                             @foreach($activeOrder->items as $item)
@@ -307,27 +460,42 @@ new class extends Component {
 
     <div
         class="w-full lg:w-[420px] bg-white shadow-2xl flex flex-col z-10 lg:border-l border-t lg:border-t-0 border-slate-100 flex-shrink-0">
-        <div class="p-4 sm:p-6 border-b border-slate-100">
-            <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Pesanan Saat Ini</h2>
-        </div>
+            @if($selected_order_id)
+                <div class="bg-indigo-50 border border-indigo-200 text-indigo-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                    <div>
+                        <span class="text-[10px] font-black block uppercase tracking-wider text-indigo-500 mb-0.5">Mode Edit Pesanan</span>
+                        <span class="font-bold text-sm">Mengubah {{ $table_number ? 'Meja ' . $table_number : 'Take Away' }}</span>
+                    </div>
+                    <button wire:click="clearSelectedOrder" class="text-xs bg-white text-indigo-600 hover:text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-200 font-bold transition shadow-sm">
+                        Batal
+                    </button>
+                </div>
+            @endif
 
-        <div class="p-4 sm:p-6 space-y-4 border-b border-slate-100 bg-slate-50/50">
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Nama Pelanggan</label>
-                <input wire:model="customer_name" type="text" placeholder="Masukkan nama..."
-                    class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                @error('customer_name') <span class="text-rose-500 text-xs mt-1">{{ $message }}</span> @enderror
+        <div class="p-4 sm:p-5 space-y-2 border-b border-slate-100 bg-slate-50/50">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nama Pelanggan</label>
+                    <input wire:model="customer_name" type="text" placeholder="Masukkan nama..."
+                        class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                    @error('customer_name') <span class="text-rose-500 text-xs mt-1">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nomor Meja</label>
+                    <input wire:model="table_number" type="number" placeholder="Contoh: 12"
+                        class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                    @error('table_number') <span class="text-rose-500 text-xs mt-1">{{ $message }}</span> @enderror
+                </div>
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1">Nomor Meja</label>
-                <input wire:model="table_number" type="text" placeholder="Contoh: 12"
-                    class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-                @error('table_number') <span class="text-rose-500 text-xs mt-1">{{ $message }}</span> @enderror
+                <label class="block text-sm font-medium text-slate-600 mb-1">Catatan Tambahan</label>
+                <textarea wire:model="note" placeholder="Contoh: Ekstra pedas, pisah es..."
+                    class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm resize-none h-14"></textarea>
+                @error('note') <span class="text-rose-500 text-xs mt-1">{{ $message }}</span> @enderror
             </div>
         </div>
 
         <div class="flex-1 lg:overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
-
             <template x-if="cartItems.length > 0">
                 <template x-for="item in cartItems" :key="item.id">
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
@@ -383,7 +551,7 @@ new class extends Component {
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                Kirim Pesanan ke Dapur
+                <span x-text="$wire.get('selected_order_id') ? 'Simpan Perubahan Pesanan' : 'Kirim Pesanan ke Dapur'"></span>
             </button>
         </div>
     </div>
@@ -396,6 +564,12 @@ new class extends Component {
                 toastMessage: '',
                 toastType: '',
                 toastTimeout: null,
+                
+                init() {
+                    this.$watch('cart', value => {
+                        // this ensures reactivity if needed
+                    });
+                },
 
                 showNotification(message, type) {
                     this.toastMessage = message;
@@ -434,7 +608,7 @@ new class extends Component {
                     return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 },
                 submitOrder() {
-                    if (this.cartItems.length === 0) {
+                    if (this.cartItems.length === 0 && !this.$wire.get('selected_order_id')) {
                         alert('Pilih minimal satu menu dulu!');
                         return;
                     }

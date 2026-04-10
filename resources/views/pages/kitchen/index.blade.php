@@ -16,6 +16,13 @@ new class extends Component {
     public function changeStatus($orderId, $newStatus)
     {
         $order = Order::where('branch_id', auth()->user()->branch_id)->findOrFail($orderId);
+        
+        if ($newStatus === 'cooking') {
+            $order->items()->where('kitchen_status', 'pending')->update(['kitchen_status' => 'cooking']);
+        } elseif ($newStatus === 'completed') {
+            $order->items()->whereIn('kitchen_status', ['pending', 'cooking'])->update(['kitchen_status' => 'completed']);
+        }
+
         $order->update(['kitchen_status' => $newStatus]);
         
         $this->dispatch('custom-notify', message: 'Status masakan diperbarui!', type: 'success');
@@ -60,6 +67,12 @@ new class extends Component {
                             <div>
                                 <h3 class="font-extrabold text-slate-800 text-xl">{{ $order->table_number ? 'Meja ' . $order->table_number : 'Take Away' }}</h3>
                                 <p class="text-sm font-medium text-slate-500">{{ $order->customer_name }} • {{ $order->order_number }}</p>
+                                @if($order->note)
+                                    <div class="mt-2 bg-yellow-100/80 border border-yellow-300 text-yellow-800 text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm">
+                                        <span class="block text-[10px] uppercase tracking-wider text-yellow-600 mb-0.5">Catatan Pesanan:</span>
+                                        {{ $order->note }}
+                                    </div>
+                                @endif
                             </div>
                             <div>
                                 @if($order->kitchen_status === 'pending')
@@ -79,12 +92,19 @@ new class extends Component {
                         <div class="p-5 flex-1 bg-white">
                             <ul class="space-y-3">
                                 @foreach($order->items as $item)
-                                    <li class="flex justify-between items-start">
+                                    @php
+                                        $isCooked = in_array($item->kitchen_status, ['completed', 'served']);
+                                    @endphp
+                                    <li class="flex justify-between items-start {{ $isCooked ? 'opacity-40' : '' }}">
                                         <div class="flex gap-3">
-                                            <span class="font-black text-indigo-600 bg-indigo-50 w-8 h-8 flex items-center justify-center rounded-lg">{{ $item->quantity }}x</span>
+                                            <span class="font-black {{ $isCooked ? 'text-slate-500 bg-slate-200' : 'text-indigo-600 bg-indigo-50' }} w-8 h-8 flex items-center justify-center rounded-lg">{{ $item->quantity }}x</span>
                                             <div>
-                                                <p class="font-bold text-slate-800">{{ $item->product_name ?? ($item->product ? $item->product->name : 'Menu Dihapus') }}</p>
-                                                <!-- Catatan jika ada bisa ditaruh di sini -->
+                                                <p class="font-bold {{ $isCooked ? 'text-slate-500 line-through' : 'text-slate-800' }}">
+                                                    {{ $item->product_name ?? ($item->product ? $item->product->name : 'Menu Dihapus') }}
+                                                </p>
+                                                @if($isCooked)
+                                                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Sudah Siap</span>
+                                                @endif
                                             </div>
                                         </div>
                                     </li>

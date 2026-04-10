@@ -234,5 +234,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             KaryawanSeeder::class,
         ]);
+
+        // 5. Seed Products, Ingredients, Menu Ingredients, Inventory Movements, Stock Takes
+        $this->call([
+            ProductInventorySeeder::class,
+        ]);
     }
 }
