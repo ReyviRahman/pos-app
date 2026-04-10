@@ -22,16 +22,16 @@ class Transaction extends Model
         'payment_method',
         'status',
         'karyawan_id',
-        'potongan_makan',
-        'tanggungan_karyawan',
+        'dibayar_perusahaan',
+        'dibayar_karyawan',
     ];
 
     protected $casts = [
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'change_amount' => 'decimal:2',
-        'potongan_makan' => 'decimal:2',
-        'tanggungan_karyawan' => 'decimal:2',
+        'dibayar_perusahaan' => 'decimal:2',
+        'dibayar_karyawan' => 'decimal:2',
     ];
 
     public function details(): HasMany

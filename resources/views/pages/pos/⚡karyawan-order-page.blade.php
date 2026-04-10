@@ -165,8 +165,8 @@ new class extends Component
                 'payment_method' => $metodePembayaran,
                 'status' => 'completed',
                 'karyawan_id' => $this->currentKaryawan->id,
-                'potongan_makan' => $potongan,
-                'tanggungan_karyawan' => $totalSetelahPotongan,
+                'dibayar_perusahaan' => $potongan,
+                'dibayar_karyawan' => $totalSetelahPotongan,
             ]);
 
             foreach ($this->cart as $item) {
@@ -227,7 +227,7 @@ new class extends Component
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Order Karyawan - Potongan Makan Siang') }}
+                {{ __('Lunch Karyawan') }}
             </h2>
         </div>
     </x-slot>

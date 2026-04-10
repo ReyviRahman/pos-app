@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\Transaction;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new class extends Component {
+new class extends Component
+{
     use WithPagination;
 
     public string $search = '';
@@ -36,7 +36,10 @@ new class extends Component {
         $query = auth()->user()->branch->transactions()->with('details')->latest();
 
         if ($this->search !== '') {
-            $query->where('invoice_number', 'like', '%' . $this->search . '%');
+            $query->where(function ($q) {
+                $q->where('invoice_number', 'like', '%'.$this->search.'%')
+                    ->orWhere('customer_name', 'like', '%'.$this->search.'%');
+            });
         }
 
         if ($this->start_date !== '') {
@@ -52,7 +55,7 @@ new class extends Component {
 
     public function getSelectedTransactionProperty()
     {
-        if (!$this->selectedTransactionId) {
+        if (! $this->selectedTransactionId) {
             return null;
         }
 
@@ -125,10 +128,13 @@ new class extends Component {
                             <tr
                                 class="bg-gray-100 border-b border-gray-200 text-gray-600 uppercase text-sm leading-normal">
                                 <th class="py-3 px-6 text-center w-16">No</th>
-                                <th class="py-3 px-6">Username</th>
+                                <th class="py-3 px-6">Customer</th>
+                                <th class="py-3 px-6">Kasir</th>
                                 <th class="py-3 px-6">Invoice</th>
                                 <th class="py-3 px-6">Tanggal</th>
                                 <th class="py-3 px-6 text-right">Total</th>
+                                <th class="py-3 px-6">Jatah Harian</th>
+                                <th class="py-3 px-6">Di Bayar Karyawan</th>
                                 <th class="py-3 px-6">Metode Bayar</th>
                                 <th class="py-3 px-6 text-center">Status</th>
                                 <th class="py-3 px-6 text-center">Aksi</th>
@@ -140,7 +146,10 @@ new class extends Component {
                                     <td class="py-3 px-6 text-center font-medium">
                                         {{ $transactions->firstItem() + $index }}
                                     </td>
-                                    <td class="py-3 px-6 font-semibold text-gray-800">
+                                    <td class="py-3 px-6 font-medium text-gray-800">
+                                        {{ $transaction->customer_name }}
+                                    </td>
+                                    <td class="py-3 px-6 text-gray-600">
                                         {{ $transaction->username_cashier }}
                                     </td>
                                     <td class="py-3 px-6 font-semibold text-gray-800">
@@ -152,6 +161,12 @@ new class extends Component {
                                     <td class="py-3 px-6 text-right font-bold text-gray-800">
                                         Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}
                                     </td>
+                                    <td class="py-3 px-6 text-green-600 font-medium">
+                                        Rp {{ number_format($transaction->dibayar_perusahaan ?? 0, 0, ',', '.') }}
+                                    </td>
+                                    <td class="py-3 px-6 text-blue-600 font-medium">
+                                        Rp {{ number_format($transaction->dibayar_karyawan ?? 0, 0, ',', '.') }}
+                                    </td>
                                     <td class="py-3 px-6">
                                         @php
                                             $methodLabels = [
@@ -161,6 +176,8 @@ new class extends Component {
                                                 'gopay' => 'Gopay Speaker',
                                                 'midtrans_qris' => 'BRI',
                                                 'transfer' => 'Transfer',
+                                                'jatah_harian' => 'Jatah Harian',
+                                                'potong_gaji' => 'Potong Gaji',
                                             ];
                                             $methodColors = [
                                                 'cash' => 'bg-green-100 text-green-700',
@@ -169,6 +186,8 @@ new class extends Component {
                                                 'gopay' => 'bg-orange-100 text-orange-700',
                                                 'midtrans_qris' => 'bg-teal-100 text-teal-700',
                                                 'transfer' => 'bg-purple-100 text-purple-700',
+                                                'jatah_harian' => 'bg-emerald-100 text-emerald-700',
+                                                'potong_gaji' => 'bg-pink-100 text-pink-700',
                                             ];
                                             $method = $transaction->payment_method;
                                         @endphp
@@ -206,7 +225,7 @@ new class extends Component {
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-8 text-center text-gray-400">
+                                    <td colspan="11" class="py-8 text-center text-gray-400">
                                         Tidak ada data transaksi.
                                     </td>
                                 </tr>
@@ -239,6 +258,10 @@ new class extends Component {
                 {{-- Info Transaksi --}}
                 <div class="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
                     <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Customer</span>
+                        <span class="font-semibold text-gray-800">{{ $selectedTransaction->customer_name }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
                         <span class="text-gray-500">Invoice</span>
                         <span class="font-semibold text-gray-800">{{ $selectedTransaction->invoice_number }}</span>
                     </div>
@@ -261,6 +284,18 @@ new class extends Component {
                         <span class="font-semibold text-green-600">Rp
                             {{ number_format($selectedTransaction->change_amount, 0, ',', '.') }}</span>
                     </div>
+                    @if($selectedTransaction->karyawan_id)
+                    <div class="border-t border-gray-200 pt-2 flex justify-between text-sm">
+                        <span class="text-gray-500">Jatah Harian (Potongan)</span>
+                        <span class="font-semibold text-green-600">Rp
+                            {{ number_format($selectedTransaction->dibayar_perusahaan ?? 0, 0, ',', '.') }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Dibayar Karyawan</span>
+                        <span class="font-semibold text-blue-600">Rp
+                            {{ number_format($selectedTransaction->dibayar_karyawan ?? 0, 0, ',', '.') }}</span>
+                    </div>
+                    @endif
                     <div class="border-t border-gray-200 pt-2 flex justify-between text-sm">
                         <span class="text-gray-700 font-semibold">Total</span>
                         <span class="text-lg font-bold text-gray-800">Rp

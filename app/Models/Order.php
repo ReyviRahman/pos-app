@@ -16,7 +16,7 @@ class Order extends Model
         'status',
         'kitchen_status',
         'karyawan_id',
-        'potongan_makan',
+        'dibayar_perusahaan',
         'metode_pembayaran_karyawan',
     ];
 

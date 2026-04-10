@@ -30,16 +30,17 @@ new class extends Component {
         </h2>
     </x-slot>
 
-    <div class="py-12 bg-slate-50 min-h-screen" x-data="{ toastMessage: '', toastType: '', toastTimeout: null }"
+    <div class="py-12 bg-slate-50 min-h-screen" 
+         x-data="{ showToast: false, toastMessage: '', toastType: 'success', toastTimeout: null }"
          @custom-notify.window="
             toastMessage = $event.detail.message; 
             toastType = $event.detail.type; 
+            showToast = true; // Gunakan showToast untuk memunculkan
             if(toastTimeout) clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => toastType = '', 3500);
+            toastTimeout = setTimeout(() => showToast = false, 3500); // Sembunyikan tanpa menghapus tipe
          ">
         
-        <!-- TOAST -->
-        <div x-cloak x-show="toastType !== ''" 
+        <div x-cloak x-show="showToast" 
              x-transition
              class="fixed top-8 right-8 text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-4 ring-4"
              :class="toastType === 'success' ? 'bg-emerald-600 ring-emerald-500/30' : 'bg-rose-600 ring-rose-500/30'">

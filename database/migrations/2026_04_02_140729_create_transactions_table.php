@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('payment_method')->default('cash'); // cash, qris, transfer, dll
             $table->string('status')->default('completed'); // pending, completed, canceled
             $table->foreignId('karyawan_id')->nullable()->constrained('karyawans')->nullOnDelete();
-            $table->integer('potongan_makan')->default(0);
+            $table->integer('dibayar_perusahaan')->default(0);
+            $table->integer('dibayar_karyawan')->default(0);
             $table->timestamps();
         });
     }

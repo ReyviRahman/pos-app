@@ -78,7 +78,7 @@ class Karyawan extends Model
     {
         return $this->transactions()
             ->whereDate('created_at', today())
-            ->sum('potongan_makan');
+            ->sum('dibayar_perusahaan');
     }
 
     public function getSisaPotongan(): int
