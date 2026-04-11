@@ -1,9 +1,11 @@
 <?php
 
-use Livewire\Component;
 use App\Models\Order;
+use App\Models\OrderItem;
+use Livewire\Component;
 
-new class extends Component {
+new class extends Component
+{
     public function getOrdersProperty()
     {
         return Order::with('items.product')
@@ -16,16 +18,49 @@ new class extends Component {
     public function changeStatus($orderId, $newStatus)
     {
         $order = Order::where('branch_id', auth()->user()->branch_id)->findOrFail($orderId);
-        
+
         if ($newStatus === 'cooking') {
             $order->items()->where('kitchen_status', 'pending')->update(['kitchen_status' => 'cooking']);
         } elseif ($newStatus === 'completed') {
             $order->items()->whereIn('kitchen_status', ['pending', 'cooking'])->update(['kitchen_status' => 'completed']);
         }
 
-        $order->update(['kitchen_status' => $newStatus]);
-        
+        $order->refresh();
+        $hasPendingItems = $order->items()->where('kitchen_status', 'pending')->exists();
+        $hasCookingItems = $order->items()->where('kitchen_status', 'cooking')->exists();
+
+        if ($hasPendingItems) {
+            $order->update(['kitchen_status' => 'pending']);
+        } elseif ($hasCookingItems) {
+            $order->update(['kitchen_status' => 'cooking']);
+        } else {
+            $order->update(['kitchen_status' => $newStatus]);
+        }
+
         $this->dispatch('custom-notify', message: 'Status masakan diperbarui!', type: 'success');
+    }
+
+    public function changeItemStatus($itemId, $newStatus)
+    {
+        $item = OrderItem::whereHas('order', function ($query) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        })->findOrFail($itemId);
+
+        $item->update(['kitchen_status' => $newStatus]);
+
+        $order = $item->order;
+        $hasPendingItems = $order->items()->where('kitchen_status', 'pending')->exists();
+        $hasCookingItems = $order->items()->where('kitchen_status', 'cooking')->exists();
+
+        if ($hasPendingItems) {
+            $order->update(['kitchen_status' => 'pending']);
+        } elseif ($hasCookingItems) {
+            $order->update(['kitchen_status' => 'cooking']);
+        } else {
+            $order->update(['kitchen_status' => 'completed']);
+        }
+
+        $this->dispatch('custom-notify', message: 'Item masakan diperbarui!', type: 'success');
     }
 };
 ?>
@@ -93,6 +128,8 @@ new class extends Component {
                             <ul class="space-y-3">
                                 @foreach($order->items as $item)
                                     @php
+                                        $isPending = $item->kitchen_status === 'pending';
+                                        $isCooking = $item->kitchen_status === 'cooking';
                                         $isCooked = in_array($item->kitchen_status, ['completed', 'served']);
                                     @endphp
                                     <li class="flex justify-between items-start {{ $isCooked ? 'opacity-40' : '' }}">
@@ -106,6 +143,21 @@ new class extends Component {
                                                     <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Sudah Siap</span>
                                                 @endif
                                             </div>
+                                        </div>
+                                        <div class="flex gap-1">
+                                            @if($isPending)
+                                                <button wire:click="changeItemStatus({{ $item->id }}, 'cooking')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-2 py-1 rounded font-bold transition" title="Mulai Masak">
+                                                    Masak
+                                                </button>
+                                            @elseif($isCooking)
+                                                <button wire:click="changeItemStatus({{ $item->id }}, 'completed')" class="text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2 py-1 rounded font-bold transition" title="Tandai Selesai">
+                                                    Jadi
+                                                </button>
+                                            @elseif($isCooked)
+                                                <button wire:click="changeItemStatus({{ $item->id }}, 'cooking')" class="text-xs bg-amber-100 text-amber-700 hover:bg-amber-200 px-2 py-1 rounded font-bold transition" title="Kembalikan ke Cooking">
+                                                    Urungkan
+                                                </button>
+                                            @endif
                                         </div>
                                     </li>
                                 @endforeach

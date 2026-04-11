@@ -1,18 +1,29 @@
 <?php
 
-use Livewire\Component;
-use Livewire\Attributes\Computed;
-use App\Models\Product;
 use App\Models\Order;
 use App\Models\OrderItem;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
 
-new class extends Component {
+new class extends Component
+{
     public $cart = [];
+
     public $customer_name = '';
+
     public $table_number = '';
+
     public $search = '';
+
     public $selected_order_id = null;
+
     public $note = '';
+
+    public $showConfirmModal = false;
+
+    public $page = 1;
+
+    public $perPage = 20;
 
     public function mount()
     {
@@ -21,11 +32,25 @@ new class extends Component {
         }
     }
 
-    // Menggunakan Computed property agar pencarian reaktif
+    public function previousPage()
+    {
+        if ($this->page > 1) {
+            $this->page--;
+        }
+    }
+
+    public function nextPage()
+    {
+        $this->page++;
+    }
+
     #[Computed]
     public function products()
     {
-        return auth()->user()->branch->products()->where('name', 'like', '%' . $this->search . '%')->get();
+        return auth()->user()->branch->products()
+            ->where('name', 'like', '%'.$this->search.'%')
+            ->orderBy('name')
+            ->paginate($this->perPage, ['*'], 'page', $this->page);
     }
 
     #[Computed]
@@ -33,11 +58,31 @@ new class extends Component {
     {
         return auth()->user()->branch->orders()->with('items.product')
             ->whereIn('kitchen_status', ['pending', 'cooking', 'completed'])
-            // Urutkan berdasarkan status: completed (1), cooking (2), pending (3)
             ->orderByRaw("FIELD(kitchen_status, 'completed', 'cooking', 'pending')")
-            // Secondary sort: Jika statusnya sama, urutkan dari yang terbaru
             ->orderBy('created_at', 'desc')
             ->get();
+    }
+
+    #[Computed]
+    public function selectedOrderCookedItems()
+    {
+        if (! $this->selected_order_id) {
+            return [];
+        }
+
+        $order = Order::with('items')->find($this->selected_order_id);
+        if (! $order) {
+            return [];
+        }
+
+        $cookedProductIds = [];
+        foreach ($order->items as $item) {
+            if (in_array($item->kitchen_status, ['cooking', 'completed', 'served'])) {
+                $cookedProductIds[] = $item->product_id;
+            }
+        }
+
+        return array_unique($cookedProductIds);
     }
 
     public function selectActiveOrder($orderId)
@@ -47,7 +92,7 @@ new class extends Component {
         $this->customer_name = $order->customer_name;
         $this->table_number = $order->table_number;
         $this->note = $order->note;
-        
+
         $cartItems = [];
         foreach ($order->items as $item) {
             if ($item->product) {
@@ -86,10 +131,13 @@ new class extends Component {
 
     public function submitOrderAlpine($cartData)
     {
-        if (empty($cartData) && !$this->selected_order_id) {
+        if (empty($cartData) && ! $this->selected_order_id) {
             $this->dispatch('custom-notify', message: 'Pilih minimal satu menu dulu!', type: 'error');
+
             return;
         }
+
+        $this->showConfirmModal = false;
 
         // Validasi input nama dan nomor meja
         $this->validate([
@@ -118,15 +166,16 @@ new class extends Component {
             $productId = $item['id'];
 
             // Jika ID produk dimanipulasi dan tidak ada di cabang ini, lewati!
-            if (!$validProducts->has($productId)) {
+            if (! $validProducts->has($productId)) {
                 continue;
             }
 
             $product = $validProducts[$productId];
             $quantity = (int) $item['quantity'];
 
-            if ($quantity <= 0)
-                continue; // Mencegah quantity minus
+            if ($quantity <= 0) {
+                continue;
+            } // Mencegah quantity minus
 
             // AMBIL HARGA DARI DATABASE, BUKAN DARI FRONTEND
             $totalPrice += ($product->price * $quantity);
@@ -139,8 +188,9 @@ new class extends Component {
         }
 
         // Jika setelah divalidasi ternyata kosong, padahal cartData dikirim (semua ID palsu)
-        if (empty($validOrderItems) && !empty($cartData)) {
+        if (empty($validOrderItems) && ! empty($cartData)) {
             $this->dispatch('custom-notify', message: 'Produk tidak valid!', type: 'error');
+
             return;
         }
 
@@ -148,8 +198,9 @@ new class extends Component {
         if ($this->selected_order_id) {
             // UPDATE EXISTING ORDER
             $order = auth()->user()->branch->orders()->find($this->selected_order_id);
-            if (!$order) {
+            if (! $order) {
                 $this->dispatch('custom-notify', message: 'Order tidak ditemukan!', type: 'error');
+
                 return;
             }
 
@@ -161,11 +212,11 @@ new class extends Component {
 
             // Logic Sinkronisasi per produk
             $existingItems = OrderItem::with('product')->where('order_id', $order->id)->get()->groupBy('product_id');
-            
+
             // Validasi: Jangan biarkan mengurangi QTY di bawah jumlah yang sudah terlanjur diproses dapur
             foreach ($existingItems as $productId => $oldItems) {
                 $alreadyProcessedQty = collect($oldItems)->whereIn('kitchen_status', ['cooking', 'completed', 'served'])->sum('quantity');
-                
+
                 if ($alreadyProcessedQty > 0) {
                     $newQty = 0;
                     foreach ($validOrderItems as $vvi) {
@@ -174,17 +225,18 @@ new class extends Component {
                             break;
                         }
                     }
-                    
+
                     if ($newQty < $alreadyProcessedQty) {
                         $productName = collect($oldItems)->first()->product->name ?? 'Menu';
                         $this->dispatch('custom-notify', message: "Gagal! {$productName} sudah diproses dapur sebanyak {$alreadyProcessedQty} porsi. Tidak bisa diperbarui di bawah angka tersebut.", type: 'error');
+
                         return;
                     }
                 }
             }
 
             $newProductIds = collect($validOrderItems)->pluck('product_id')->toArray();
-            
+
             // 1. Hapus produk yang tidak ada di keranjang baru
             $productIdsToRemove = $existingItems->keys()->diff($newProductIds);
             foreach ($productIdsToRemove as $pid) {
@@ -207,7 +259,7 @@ new class extends Component {
                         'product_id' => $itemData['product_id'],
                         'quantity' => $newQty - $oldQty,
                         'price' => $itemData['price'],
-                        'kitchen_status' => 'pending'
+                        'kitchen_status' => 'pending',
                     ]);
                 } elseif ($newQty < $oldQty) {
                     $qtyToRemove = $oldQty - $newQty;
@@ -217,7 +269,9 @@ new class extends Component {
                     });
 
                     foreach ($sortedOld as $oldI) {
-                        if ($qtyToRemove <= 0) break;
+                        if ($qtyToRemove <= 0) {
+                            break;
+                        }
                         if ($oldI->quantity <= $qtyToRemove) {
                             $qtyToRemove -= $oldI->quantity;
                             $oldI->delete();
@@ -242,7 +296,7 @@ new class extends Component {
         } else {
             // BUAT ORDER BARU (Tetap aman seperti kodemu sebelumnya)
             $order = auth()->user()->branch->orders()->create([
-                'order_number' => 'ORD-' . now()->format('YmdHis'),
+                'order_number' => 'ORD-'.now()->format('YmdHis'),
                 'username_cashier' => auth()->user()->name ?? 'System',
                 'customer_name' => $this->customer_name,
                 'table_number' => $this->table_number,
@@ -456,6 +510,26 @@ new class extends Component {
                 </div>
             @endforelse
         </div>
+
+        @if($this->products->lastPage() > 1)
+        <div class="mt-6 flex justify-center">
+            <div class="flex gap-2">
+                @if($this->products->onFirstPage())
+                    <span class="px-4 py-2 bg-slate-200 text-slate-400 rounded-lg cursor-not-allowed">‹</span>
+                @else
+                    <button wire:click="previousPage" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">‹</button>
+                @endif
+                
+                <span class="px-4 py-2 text-slate-600 font-medium">{{ $this->products->currentPage() }} / {{ $this->products->lastPage() }}</span>
+                
+                @if($this->products->currentPage() >= $this->products->lastPage())
+                    <span class="px-4 py-2 bg-slate-200 text-slate-400 rounded-lg cursor-not-allowed">›</span>
+                @else
+                    <button wire:click="nextPage" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">›</button>
+                @endif
+            </div>
+        </div>
+        @endif
     </div>
 
     <div
@@ -495,7 +569,7 @@ new class extends Component {
             </div>
         </div>
 
-        <div class="flex-1 lg:overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
+        <div class="h-[400px] lg:h-[500px] overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
             <template x-if="cartItems.length > 0">
                 <template x-for="item in cartItems" :key="item.id">
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
@@ -510,7 +584,10 @@ new class extends Component {
                         <div class="flex items-center justify-between mt-2">
                             <div class="flex items-center bg-slate-100 rounded-lg p-1">
                                 <button @click="decreaseQuantity(item.id)"
-                                    class="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition">-</button>
+                                    :class="isItemCooked(item.id) ? 'opacity-50 cursor-not-allowed' : ''"
+                                    :disabled="isItemCooked(item.id)"
+                                    class="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm transition"
+                                    :class="isItemCooked(item.id) ? '' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'">-</button>
                                 <span class="w-10 text-center font-bold text-slate-800" x-text="item.quantity"></span>
                                 <button @click="increaseQuantity(item.id)"
                                     class="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition">+</button>
@@ -546,13 +623,59 @@ new class extends Component {
                 <span class="text-slate-500 font-medium">Total Pembayaran</span>
                 <span class="text-2xl font-extrabold text-indigo-600" x-text="formatRupiah(totalPrice)"></span>
             </div>
-            <button @click="submitOrder"
+            <button @click="validateAndShowModal()"
                 class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex justify-center items-center gap-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
                 <span x-text="$wire.get('selected_order_id') ? 'Simpan Perubahan Pesanan' : 'Kirim Pesanan ke Dapur'"></span>
             </button>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Kirim Pesanan -->
+    <div x-show="showConfirmModal" x-cloak style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div @click.outside="showConfirmModal = false" class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
+                <h4 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    Konfirmasi Pesanan
+                </h4>
+                <button @click="showConfirmModal = false" class="text-slate-400 hover:text-rose-500 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-5">
+                <div class="mb-4">
+                    <p class="font-bold text-slate-700 mb-2">Meja: <span x-text="$wire.get('table_number') || 'Take Away'"></span></p>
+                    <p class="font-bold text-slate-700 mb-4">Pelanggan: <span x-text="$wire.get('customer_name') || '-'"></span></p>
+                    <div class="bg-slate-50 rounded-xl p-4 max-h-[200px] overflow-y-auto">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Item Pesanan:</p>
+                        <template x-for="item in cartItems" :key="item.id">
+                            <div class="flex justify-between text-sm py-1 border-b border-slate-100 last:border-0">
+                                <span class="font-medium" x-text="item.quantity + 'x ' + item.name"></span>
+                                <span class="font-bold text-indigo-600" x-text="formatRupiah(item.price * item.quantity)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mb-4 pt-3 border-t border-slate-100">
+                    <span class="font-bold text-slate-700">Total:</span>
+                    <span class="text-xl font-extrabold text-indigo-600" x-text="formatRupiah(totalPrice)"></span>
+                </div>
+                <div x-show="$wire.get('note')" class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-lg border border-yellow-200 mb-4">
+                    <strong>Catatan:</strong> <span x-text="$wire.get('note')"></span>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="showConfirmModal = false" class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition">
+                        Batal
+                    </button>
+                    <button @click="submitOrder(); showConfirmModal = false" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Konfirmasi
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -564,6 +687,7 @@ new class extends Component {
                 toastMessage: '',
                 toastType: '',
                 toastTimeout: null,
+                showConfirmModal: false,
                 
                 init() {
                     this.$watch('cart', value => {
@@ -604,8 +728,26 @@ new class extends Component {
                 removeFromCart(id) {
                     delete this.cart[id];
                 },
+                isItemCooked(itemId) {
+                    const cookedItems = this.$wire.get('selectedOrderCookedItems') || [];
+                    return cookedItems.includes(itemId);
+                },
                 get totalPrice() {
                     return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                },
+                validateAndShowModal() {
+                    const customerName = this.$wire.get('customer_name');
+                    const tableNumber = this.$wire.get('table_number');
+                    
+                    if (!customerName || !customerName.trim()) {
+                        this.showNotification('Nama pelanggan wajib diisi!', 'error');
+                        return;
+                    }
+                    if (!tableNumber || !tableNumber.toString().trim()) {
+                        this.showNotification('Nomor meja wajib diisi!', 'error');
+                        return;
+                    }
+                    this.showConfirmModal = true;
                 },
                 submitOrder() {
                     if (this.cartItems.length === 0 && !this.$wire.get('selected_order_id')) {
