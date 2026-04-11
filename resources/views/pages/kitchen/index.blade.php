@@ -216,15 +216,19 @@ new class extends Component
                                             </div>
                                             <div class="flex flex-col gap-1">
                                                 @if($isWaiting)
-                                                    <button wire:click="changeItemStatus({{ $item->id }}, 'ready')" class="text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2.5 py-1.5 rounded-lg font-bold transition" title="Tandai Siap">
-                                                        ✅ Siap
-                                                    </button>
-                                                    <button wire:click="openRejectModal({{ $item->id }}, 'rejected')" class="text-xs bg-rose-100 text-rose-700 hover:bg-rose-200 px-2.5 py-1.5 rounded-lg font-bold transition" title="Tolak">
-                                                        ❌ Tolak
-                                                    </button>
-                                                    <button wire:click="openRejectModal({{ $item->id }}, 'waste')" class="text-xs bg-orange-100 text-orange-700 hover:bg-orange-200 px-2.5 py-1.5 rounded-lg font-bold transition" title="Gagal Masak">
-                                                        ⚠️ Gagal
-                                                    </button>
+                                                    <div class="flex flex-col gap-2 mt-2">
+                                                        <button wire:click="changeItemStatus({{ $item->id }}, 'ready')" class="w-full text-sm bg-emerald-500 text-white hover:bg-emerald-600 px-3 py-2 rounded-lg font-bold transition" title="Tandai Siap">
+                                                            ✅ Siap
+                                                        </button>
+                                                        <div class="flex gap-1.5">
+                                                            <button wire:click="openRejectModal({{ $item->id }}, 'rejected')" class="flex-1 text-[10px] bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 px-2 py-1.5 rounded-lg font-bold transition border border-rose-200" title="Tolak">
+                                                                ❌ Tolak
+                                                            </button>
+                                                            <button wire:click="openRejectModal({{ $item->id }}, 'waste')" class="flex-1 text-[10px] bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-700 px-2 py-1.5 rounded-lg font-bold transition border border-orange-200" title="Gagal Masak">
+                                                                ⚠️ Gagal
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 @endif
                                             </div>
                                         </div>
