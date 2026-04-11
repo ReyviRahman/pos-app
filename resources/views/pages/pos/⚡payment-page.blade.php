@@ -38,9 +38,11 @@ new class extends Component {
 
         $this->payment_method = $paymentMethod;
 
-        // Rebuild cart context securely from backend
+        // Rebuild cart context securely from backend, excluding rejected items
         $this->cart = [];
         foreach ($this->selectedOrder->items as $item) {
+            if ($item->kitchen_status === 'rejected') continue;
+
             $this->cart[$item->product_id] = [
                 'id' => $item->product_id,
                 'name' => $item->product->name ?? 'Produk Dihapus',
@@ -49,8 +51,8 @@ new class extends Component {
             ];
         }
 
-        // recalculate security metrics
-        $this->total = $this->selectedOrder->total_price;
+        // Recalculate total excluding rejected items
+        $this->total = collect($this->cart)->sum(fn($item) => $item['price'] * $item['qty']);
 
         $this->processDirectPayment();
     }
@@ -178,7 +180,7 @@ new class extends Component {
                                     <div class="text-xs text-gray-400"
                                         x-text="new Date(order.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})">
                                     </div>
-                                    <div class="text-blue-600 font-extrabold" x-text="formatRupiah(order.total_price)">
+                                    <div class="text-blue-600 font-extrabold" x-text="formatRupiah(orderTotal(order))">
                                     </div>
                                 </div>
                             </div>
@@ -295,12 +297,14 @@ new class extends Component {
                 },
                 get cart() {
                     if (!this.selectedOrder) return [];
-                    return this.selectedOrder.items.map(item => ({
-                        id: item.product_id,
-                        name: item.product ? item.product.name : 'Produk Dihapus',
-                        price: item.price,
-                        qty: item.quantity
-                    }));
+                    return this.selectedOrder.items
+                        .filter(item => item.kitchen_status !== 'rejected')
+                        .map(item => ({
+                            id: item.product_id,
+                            name: item.product ? item.product.name : 'Produk Dihapus',
+                            price: item.price,
+                            qty: item.quantity
+                        }));
                 },
                 get total() {
                     return this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -316,6 +320,11 @@ new class extends Component {
                     if (!this.selectedOrderId) return;
                     // Hanya mengirim orderId dan metode pembayaran
                     this.$wire.checkoutAlpine(this.selectedOrderId, this.paymentMethod);
+                },
+                orderTotal(order) {
+                    return order.items
+                        .filter(item => item.kitchen_status !== 'rejected')
+                        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 },
                 formatRupiah(number) {
                     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
