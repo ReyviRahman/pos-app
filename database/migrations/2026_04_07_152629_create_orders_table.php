@@ -19,8 +19,9 @@ return new class extends Migration {
             $table->string('table_number', 10);
             $table->decimal('total_price', 15, 2);
             $table->string('status')->default('unpaid');
-            $table->string('kitchen_status')->default('pending');
+            $table->string('kitchen_status')->default('waiting');
             $table->index(['branch_id', 'kitchen_status']);
+            $table->text('note')->nullable();
             $table->timestamps();
         });
     }

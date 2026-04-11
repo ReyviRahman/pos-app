@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -17,6 +16,9 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity');
             $table->decimal('price', 15, 2);
+            $table->string('kitchen_status')->default('waiting');
+            $table->text('note')->nullable();
+            $table->text('reject_reason')->nullable();
             $table->timestamps();
         });
     }
