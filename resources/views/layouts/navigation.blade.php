@@ -66,13 +66,20 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                         </svg>
+                        Menu
+                    </div>
+                </a>
+                <a href="{{ route('waiters.order') }}"
+                    class="flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('waiters.order') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 {{ request()->routeIs('waiters.order') ? 'text-indigo-600' : 'text-slate-400' }}" xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24"><path fill="currentColor" d="M6 22q-.825 0-1.412-.587T4 20v-2H3v-2h1v-3H3v-2h1V8H3V6h1V4q0-.825.588-1.412T6 2h12q.825 0 1.413.588T20 4v16q0 .825-.587 1.413T18 22zm0-2h12V4H6v2h1v2H6v3h1v2H6v3h1v2H6zm0 0V4zm3.5-3H11v-4q.65-.175 1.075-.712t.425-1.213V7h-1v3.775h-.75V7h-1v3.775H9V7H8v4.075q0 .675.425 1.213T9.5 13zm5.5 0h1.5V7q-1.25 0-2.125.875T13.5 10v3H15z"/></svg>
                         Order
                     </div>
                 </a>
             @endif
 
             @if(auth()->user()->role === 'chef')
-                <a href="{{ route('kitchen.index') }}"
+                <a href="{{ route('kitchen.items') }}"
                     class="flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition {{ request()->routeIs('kitchen.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-50' }}">
                     <div class="flex items-center gap-3">
                         <svg class="w-5 h-5 {{ request()->routeIs('kitchen.*') ? 'text-indigo-600' : 'text-slate-400' }}"

@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     Route::livewire('/order', 'pages::pos.order-page')->middleware('role:waiter')->name('order');
+    Route::livewire('/waiters-order', 'pages::pos.waiters-order-page')->middleware('role:waiter')->name('waiters.order');
     Route::livewire('/payment', 'pages::pos.payment-page')->middleware('role:kasir')->name('payment');
     Route::livewire('/karyawan-order', 'pages::pos.karyawan-order-page')->middleware('role:kasir')->name('karyawan.order');
     Route::livewire('/history', 'pages::history.index')->middleware('role:kasir,admin,manajer')->name('history.index');
@@ -26,6 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/bahans', 'pages::bahan.index')->middleware('role:admin,manajer')->name('bahan.index');
     Route::livewire('/inventory-movement', 'pages::inventory-movement.index')->middleware('role:admin,manajer')->name('inventory-movement.index');
     Route::livewire('/kitchen', 'pages::kitchen.index')->middleware('role:chef,admin,manajer')->name('kitchen.index');
+    Route::livewire('/kitchen/items', 'pages::kitchen.items')->middleware('role:chef,admin,manajer')->name('kitchen.items');
 });
 
 Route::middleware('auth')->group(function () {

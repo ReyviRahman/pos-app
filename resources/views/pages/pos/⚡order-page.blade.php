@@ -21,12 +21,17 @@ new class extends Component
 
     public $page = 1;
 
-    public $perPage = 20;
+    public $perPage = 9;
 
     public function mount()
     {
         if (auth()->user()->role !== 'waiter') {
             abort(403, 'Akses Ditolak: Hanya Waiter yang berhak mengakses halaman pemesanan.');
+        }
+
+        $order_id = request()->query('order_id');
+        if ($order_id) {
+            $this->selectActiveOrder($order_id);
         }
     }
 
@@ -123,7 +128,7 @@ new class extends Component
             $order->update(['kitchen_status' => 'waiting']);
         } elseif ($activeStatuses->contains('ready')) {
             $order->update(['kitchen_status' => 'ready']);
-        } elseif ($statuses->contains('rejected') && !$statuses->contains('served')) {
+        } elseif ($statuses->contains('rejected') && ! $statuses->contains('served')) {
             // All items rejected, none served
             $order->update(['kitchen_status' => 'rejected']);
         } else {
@@ -320,144 +325,7 @@ new class extends Component
             </div>
         </div>
 
-        <!-- DAFTAR PESANAN AKTIF -->
-        <div wire:poll.5s.visible class="mb-8 hidden sm:block">
-            <h3 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Status Pesanan Aktif
-            </h3>
-            
-            @if(count($this->activeOrders) > 0)
-                <div class="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
-                    @foreach($this->activeOrders as $activeOrder)
-                        @php
-                            $readyCount = $activeOrder->items->where('kitchen_status', 'ready')->count();
-                            $servedCount = $activeOrder->items->where('kitchen_status', 'served')->count();
-                            $waitingCount = $activeOrder->items->where('kitchen_status', 'waiting')->count();
-                            $rejectedCount = $activeOrder->items->where('kitchen_status', 'rejected')->count();
-                            $totalItems = $activeOrder->items->count();
-                        @endphp
-                        <div wire:key="active-order-{{ $activeOrder->id }}" x-data="{ showDetails: false }" class="min-w-[240px] bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex-shrink-0 flex flex-col gap-1.5 relative">
-                            <div class="flex justify-between items-center gap-2">
-                                <p class="font-bold text-slate-800 text-sm truncate">{{ $activeOrder->table_number ? 'Meja ' . $activeOrder->table_number : 'TA' }} • {{ $activeOrder->customer_name }}</p>
-                                <div class="flex items-center gap-1 flex-shrink-0">
-                                    @if($readyCount > 0)<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">{{ $readyCount }} Siap</span>@endif
-                                    @if($rejectedCount > 0)<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-1.5 py-0.5 rounded">{{ $rejectedCount }} Ditolak</span>@endif
-                                    <span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded">{{ $totalItems }}</span>
-                                </div>
-                            </div>
-                            <div class="flex w-full h-1.5 rounded-full overflow-hidden bg-slate-100">
-                                @if($servedCount > 0)<div class="bg-emerald-500" style="width:{{ ($servedCount/$totalItems)*100 }}%"></div>@endif
-                                @if($readyCount > 0)<div class="bg-amber-400" style="width:{{ ($readyCount/$totalItems)*100 }}%"></div>@endif
-                                @if($waitingCount > 0)<div class="bg-slate-300" style="width:{{ ($waitingCount/$totalItems)*100 }}%"></div>@endif
-                                @if($rejectedCount > 0)<div class="bg-rose-400" style="width:{{ ($rejectedCount/$totalItems)*100 }}%"></div>@endif
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button @click="showDetails = true" class="text-[11px] text-indigo-600 font-bold hover:text-indigo-800 underline">Detail</button>
-                                @if($activeOrder->status === 'unpaid')
-                                    <span class="text-slate-300">|</span>
-                                    <button type="button" wire:click="selectActiveOrder({{ $activeOrder->id }})" class="text-[11px] text-emerald-600 font-bold hover:text-emerald-800 underline">+ Tambah</button>
-                                @endif
-                                @if($readyCount > 0)
-                                    <button wire:click="markAllAsServed({{ $activeOrder->id }})" class="ml-auto text-[11px] bg-emerald-500 text-white hover:bg-emerald-600 px-2 py-1 rounded-lg font-bold transition">Hidangkan ({{ $readyCount }})</button>
-                                @elseif($activeOrder->kitchen_status === 'waiting')
-                                    <span class="ml-auto text-[10px] text-slate-400 font-medium">⏳ Menunggu</span>
-                                @endif
-                            </div>
-
-                            <!-- Modal Detail -->
-                            <div x-show="showDetails" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                                <div @click.outside="showDetails = false" class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative" x-transition>
-                                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                        <h4 class="font-bold text-slate-800 text-lg">Detail Pesanan</h4>
-                                        <button @click="showDetails = false" class="text-slate-400 hover:text-rose-500 transition">
-                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                        </button>
-                                    </div>
-                                    <div class="p-4 max-h-[60vh] overflow-y-auto">
-                                        <div x-data="{ editing: false, editName: '{{ addslashes($activeOrder->customer_name) }}', editTable: '{{ addslashes($activeOrder->table_number) }}' }" class="mb-4 bg-indigo-50 text-indigo-800 p-3 rounded-xl border border-indigo-100">
-                                            <template x-if="!editing">
-                                                <div class="flex justify-between items-center">
-                                                    <div>
-                                                        <span class="font-black block text-base">{{ $activeOrder->table_number ? 'Meja ' . $activeOrder->table_number : 'Take Away' }}</span>
-                                                        <span class="text-sm font-medium">Atas Nama: {{ $activeOrder->customer_name }}</span>
-                                                    </div>
-                                                    <button @click="editing = true" class="text-indigo-500 hover:text-indigo-700 p-1.5 rounded-lg hover:bg-indigo-100" title="Edit">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                                    </button>
-                                                </div>
-                                            </template>
-                                            <template x-if="editing">
-                                                <div class="space-y-2">
-                                                    <div>
-                                                        <label class="text-[10px] font-bold text-indigo-600 uppercase">Nama Customer</label>
-                                                        <input type="text" x-model="editName" class="w-full text-sm border border-indigo-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-indigo-400" />
-                                                    </div>
-                                                    <div>
-                                                        <label class="text-[10px] font-bold text-indigo-600 uppercase">No. Meja</label>
-                                                        <input type="text" x-model="editTable" class="w-full text-sm border border-indigo-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-indigo-400" />
-                                                    </div>
-                                                    <div class="flex gap-2 pt-1">
-                                                        <button @click="$wire.updateOrderInfo({{ $activeOrder->id }}, editName, editTable); editing = false" class="flex-1 text-xs bg-indigo-600 text-white py-1.5 rounded-lg font-bold hover:bg-indigo-700 transition">Simpan</button>
-                                                        <button @click="editing = false; editName = '{{ addslashes($activeOrder->customer_name) }}'; editTable = '{{ addslashes($activeOrder->table_number) }}'" class="flex-1 text-xs bg-slate-200 text-slate-700 py-1.5 rounded-lg font-bold hover:bg-slate-300 transition">Batal</button>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                        <ul class="text-sm text-slate-600 space-y-3">
-                                            @foreach($activeOrder->items as $item)
-                                                @php
-                                                    $statusConfig = match($item->kitchen_status) {
-                                                        'waiting' => ['label' => 'Menunggu', 'bg' => 'bg-slate-100', 'text' => 'text-slate-600', 'icon' => '⏳'],
-                                                        'ready' => ['label' => 'Siap', 'bg' => 'bg-emerald-100', 'text' => 'text-emerald-700', 'icon' => '✅'],
-                                                        'served' => ['label' => 'Dihidangkan', 'bg' => 'bg-emerald-50', 'text' => 'text-emerald-600', 'icon' => '🍽️'],
-                                                        'rejected' => ['label' => 'Ditolak', 'bg' => 'bg-rose-100', 'text' => 'text-rose-700', 'icon' => '❌'],
-                                                        default => ['label' => ucfirst($item->kitchen_status), 'bg' => 'bg-slate-100', 'text' => 'text-slate-600', 'icon' => '❓'],
-                                                    };
-                                                @endphp
-                                                <li class="border border-slate-100 rounded-xl p-3 {{ $item->kitchen_status === 'rejected' ? 'opacity-60' : '' }}">
-                                                    <div class="flex justify-between items-start">
-                                                        <div class="flex gap-2 items-start">
-                                                            <span class="font-black text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-lg text-sm shadow-sm">{{ $item->quantity }}x</span>
-                                                            <div>
-                                                                <p class="font-bold text-slate-800 {{ $item->kitchen_status === 'rejected' ? 'line-through' : '' }}">{{ $item->product_name ?? ($item->product ? $item->product->name : 'Item') }}</p>
-                                                                @if($item->note)<p class="text-xs text-slate-500 mt-0.5 italic">📝 {{ $item->note }}</p>@endif
-                                                                @if($item->reject_reason)<p class="text-xs text-rose-600 mt-0.5 font-medium">Alasan: {{ $item->reject_reason }}</p>@endif
-                                                            </div>
-                                                        </div>
-                                                        <span class="text-[10px] font-bold px-2 py-1 rounded-lg {{ $statusConfig['bg'] }} {{ $statusConfig['text'] }} whitespace-nowrap">{{ $statusConfig['icon'] }} {{ $statusConfig['label'] }}</span>
-                                                    </div>
-                                                    @if($item->kitchen_status === 'ready')
-                                                        <div class="mt-2 flex justify-end">
-                                                            <button wire:click="markItemAsServed({{ $item->id }})" class="text-xs bg-emerald-500 text-white hover:bg-emerald-600 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
-                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                                Sudah Dihidangkan
-                                                            </button>
-                                                        </div>
-                                                    @endif
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                    @if($readyCount > 0)
-                                    <div class="p-4 border-t border-slate-100 bg-slate-50">
-                                        <button wire:click="markAllAsServed({{ $activeOrder->id }})" class="w-full bg-emerald-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-600 transition flex items-center justify-center gap-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            Hidangkan Semua ({{ $readyCount }})
-                                        </button>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <div class="bg-white/50 border border-slate-200 border-dashed rounded-xl p-4 text-center text-sm font-medium text-slate-400">
-                    Tidak ada pesanan aktif saat ini.
-                </div>
-            @endif
-        </div>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             @forelse($this->products as $product)
                 <div wire:key="product-{{ $product->id }}"
