@@ -51,18 +51,21 @@ new class extends Component {
 
         $this->payment_method = $paymentMethod;
 
-        // Rebuild cart context securely from backend, excluding rejected items
         $this->cart = [];
         foreach ($this->selectedOrder->items as $item) {
             if ($item->kitchen_status === 'rejected')
                 continue;
 
-            $this->cart[$item->product_id] = [
-                'id' => $item->product_id,
-                'name' => $item->product->name ?? 'Produk Dihapus',
-                'price' => $item->price,
-                'qty' => $item->quantity,
-            ];
+            if (isset($this->cart[$item->product_id])) {
+                $this->cart[$item->product_id]['qty'] += $item->quantity;
+            } else {
+                $this->cart[$item->product_id] = [
+                    'id' => $item->product_id,
+                    'name' => $item->product->name ?? 'Produk Dihapus',
+                    'price' => $item->price,
+                    'qty' => $item->quantity,
+                ];
+            }
         }
 
         // Recalculate total excluding rejected items
@@ -294,14 +297,21 @@ new class extends Component {
                 },
                 get cart() {
                     if (!this.selectedOrder) return [];
-                    return this.selectedOrder.items
-                        .filter(item => item.kitchen_status !== 'rejected')
-                        .map(item => ({
-                            id: item.product_id,
-                            name: item.product ? item.product.name : 'Produk Dihapus',
-                            price: item.price,
-                            qty: item.quantity
-                        }));
+                    const aggregated = {};
+                    this.selectedOrder.items.forEach(item => {
+                        if(item.kitchen_status === 'rejected') return;
+                        if(aggregated[item.product_id]) {
+                            aggregated[item.product_id].qty += item.quantity;
+                        } else {
+                            aggregated[item.product_id] = {
+                                id: item.product_id,
+                                name: item.product ? item.product.name : 'Produk Dihapus',
+                                price: item.price,
+                                qty: item.quantity
+                            };
+                        }
+                    });
+                    return Object.values(aggregated);
                 },
                 get total() {
                     return this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -326,7 +336,9 @@ new class extends Component {
                     this.$wire.checkoutAlpine(this.selectedOrderId, this.paymentMethod);
                 },
                 orderItemCount(order) {
-                    return order.items.filter(item => item.kitchen_status !== 'rejected').length;
+                    return order.items
+                        .filter(item => item.kitchen_status !== 'rejected')
+                        .reduce((sum, item) => sum + item.quantity, 0);
                 },
                 formatRupiah(number) {
                     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);

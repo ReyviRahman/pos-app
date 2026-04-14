@@ -17,7 +17,9 @@ new class extends Component
     #[Computed]
     public function activeOrders()
     {
-        return auth()->user()->branch->orders()->with('items.product')
+        return auth()->user()->branch->orders()->with(['items' => function ($query) {
+            $query->orderByRaw("FIELD(kitchen_status, 'ready', 'waiting', 'served', 'rejected')")->with('product');
+        }])
             ->whereIn('kitchen_status', ['waiting', 'ready', 'rejected', 'served'])
             ->where('status', '!=', 'paid')
             ->orderByRaw("FIELD(kitchen_status, 'ready', 'rejected', 'waiting', 'served')")

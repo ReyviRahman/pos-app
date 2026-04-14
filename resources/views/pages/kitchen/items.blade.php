@@ -27,7 +27,8 @@ new class extends Component
 
         if ($this->filterTable) {
             $query->whereHas('order', function ($q) {
-                $q->where('table_number', 'like', '%'.$this->filterTable.'%');
+                // Hapus 'like' dan wildcards '%', langsung pakai value-nya aja
+                $q->where('table_number', $this->filterTable);
             });
         }
 
