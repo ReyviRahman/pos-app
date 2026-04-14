@@ -121,11 +121,31 @@ new class extends Component
                                         Tambah Item
                                     </a>
                                 </div>
-                                <div class="flex w-full h-2 rounded-full overflow-hidden bg-slate-100 mt-3">
-                                    @if($servedCount > 0)<div class="bg-emerald-500" style="width:{{ ($servedCount/$totalItems)*100 }}%"></div>@endif
-                                    @if($readyCount > 0)<div class="bg-amber-400" style="width:{{ ($readyCount/$totalItems)*100 }}%"></div>@endif
-                                    @if($waitingCount > 0)<div class="bg-slate-300" style="width:{{ ($waitingCount/$totalItems)*100 }}%"></div>@endif
-                                    @if($rejectedCount > 0)<div class="bg-rose-400" style="width:{{ ($rejectedCount/$totalItems)*100 }}%"></div>@endif
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    @if($waitingCount > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                            Menunggu <span class="bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] leading-none ml-0.5">{{ $waitingCount }}</span>
+                                        </span>
+                                    @endif
+                                    @if($readyCount > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                            Siap <span class="bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full text-[10px] leading-none ml-0.5">{{ $readyCount }}</span>
+                                        </span>
+                                    @endif
+                                    @if($servedCount > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            Dihidangkan <span class="bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full text-[10px] leading-none ml-0.5">{{ $servedCount }}</span>
+                                        </span>
+                                    @endif
+                                    @if($rejectedCount > 0)
+                                        <span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                            Ditolak <span class="bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded-full text-[10px] leading-none ml-0.5">{{ $rejectedCount }}</span>
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
 

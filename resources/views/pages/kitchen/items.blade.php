@@ -7,7 +7,7 @@ use Livewire\Component;
 
 new class extends Component
 {
-    public $sortBy = 'time';
+    public $sortBy = 'table';
 
     public $filterTable = '';
 
@@ -32,11 +32,8 @@ new class extends Component
         }
 
         if ($this->filterMenu) {
-            $query->where(function ($q) {
-                $q->where('product_name', 'like', '%'.$this->filterMenu.'%')
-                    ->orWhereHas('product', function ($q2) {
-                        $q2->where('name', 'like', '%'.$this->filterMenu.'%');
-                    });
+            $query->whereHas('product', function ($q) {
+                $q->where('name', 'like', '%'.$this->filterMenu.'%');
             });
         }
 
@@ -190,20 +187,20 @@ new class extends Component
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Urutkan berdasarkan</label>
                     <div class="flex gap-2">
+                        <button wire:click="$set('sortBy', 'table')" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition {{ $sortBy === 'table' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+                            🪑 Meja
+                        </button>
                         <button wire:click="$set('sortBy', 'time')" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition {{ $sortBy === 'time' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                             🕐 Waktu
                         </button>
                         <button wire:click="$set('sortBy', 'menu')" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition {{ $sortBy === 'menu' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                             🍽️ Menu
                         </button>
-                        <button wire:click="$set('sortBy', 'table')" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition {{ $sortBy === 'table' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                            🪑 Meja
-                        </button>
                     </div>
                 </div>
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Filter Meja</label>
-                    <select wire:model="filterTable" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                    <select wire:model.live="filterTable" class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
                         <option value="">Semua Meja</option>
                         @foreach($this->tables as $table)
                             <option value="{{ $table }}">Meja {{ $table }}</option>
@@ -212,70 +209,121 @@ new class extends Component
                 </div>
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-slate-600 mb-1">Filter Menu</label>
-                    <input wire:model="filterMenu" type="text" placeholder="Cari menu..." class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                    <input wire:model.live="filterMenu" type="text" placeholder="Cari menu..." class="w-full p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
                 </div>
             </div>
         </div>
 
         <div wire:poll.5s>
             @if(count($this->allItems) > 0)
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    @foreach($this->allItems as $item)
-                        @php
-                            $isWaiting = $item->kitchen_status === 'waiting';
-                            $isReady = $item->kitchen_status === 'ready';
-                            $order = $item->order;
-                        @endphp
-                        <div wire:key="item-{{ $item->id }}" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                            <div class="p-3 border-b border-slate-100 bg-slate-50">
-                                <div class="flex justify-between items-center">
+                @if($sortBy === 'table')
+                    @php
+                        $groupedItems = collect($this->allItems)->groupBy('order_id');
+                    @endphp
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        @foreach($groupedItems as $orderId => $items)
+                            @php
+                                $order = $items->first()->order;
+                                $tableName = $order->table_number ? 'Meja ' . $order->table_number : 'Take Away';
+                            @endphp
+                            <div wire:key="group-{{ $orderId }}" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                                     <div>
-                                        <p class="font-bold text-slate-800">{{ $order->table_number ? 'Meja ' . $order->table_number : 'Take Away' }}</p>
-                                        <p class="text-xs text-slate-500">{{ $order->customer_name }}</p>
+                                        <p class="font-bold text-slate-800 text-lg">{{ $tableName }}</p>
+                                        <p class="text-sm font-medium text-slate-500">{{ $order->customer_name }}</p>
                                     </div>
-                                    <span class="text-xs text-slate-400">{{ $item->created_at->diffForHumans() }}</span>
-                                </div>
-                            </div>
-
-                            <div class="p-3 flex-1">
-                                <div class="flex items-start gap-2">
-                                    <span class="font-black w-7 h-7 flex items-center justify-center rounded text-sm
-                                        {{ $isWaiting ? 'text-indigo-600 bg-indigo-50' : 'text-emerald-600 bg-emerald-100' }}">
-                                        {{ $item->quantity }}x
+                                    <span class="text-xs text-slate-400 font-medium bg-white px-2 py-1 rounded shadow-sm border border-slate-200">
+                                        {{ $items->first()->created_at->diffForHumans() }}
                                     </span>
-                                    <div class="flex-1">
-                                        <p class="font-bold text-slate-800 text-sm">
-                                            {{ $item->product_name ?? ($item->product ? $item->product->name : 'Menu Dihapus') }}
-                                        </p>
-                                        @if($item->note)
-                                            <p class="text-xs text-slate-500 italic">📝 {{ $item->note }}</p>
-                                        @endif
-                                    </div>
+                                </div>
+                                <div class="p-0">
+                                    <ul class="divide-y divide-slate-100">
+                                        @foreach($items as $item)
+                                            <li class="p-3 flex justify-between items-center hover:bg-slate-50 transition">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="font-black w-8 h-8 flex items-center justify-center rounded bg-indigo-50 text-indigo-600 text-sm border border-indigo-100">{{ $item->quantity }}x</span>
+                                                    <div>
+                                                        <p class="font-bold text-slate-800">{{ $item->product ? $item->product->name : 'Menu Dihapus' }}</p>
+                                                        @if($item->note)<p class="text-xs text-slate-500 italic">📝 {{ $item->note }}</p>@endif
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-1.5 border-l border-slate-200 pl-3 ml-2">
+                                                    <button wire:click="changeItemStatus({{ $item->id }}, 'ready')" class="w-8 h-8 flex items-center justify-center bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 transition shadow-sm" title="Siap">✅</button>
+                                                    <button wire:click="openRejectModal({{ $item->id }}, 'rejected')" class="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-600 rounded-lg font-bold hover:bg-rose-100 transition border border-rose-200" title="Tolak">❌</button>
+                                                    <button wire:click="openRejectModal({{ $item->id }}, 'waste')" class="w-8 h-8 flex items-center justify-center bg-orange-50 text-orange-600 rounded-lg font-bold hover:bg-orange-100 transition border border-orange-200" title="Gagal Masak">⚠️</button>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                <div class="p-3 border-t border-slate-100 bg-slate-50">
+                                    <button wire:click="markAllReady({{ $orderId }})" class="w-full bg-emerald-500 text-white py-2 rounded-xl font-bold text-sm hover:bg-emerald-600 transition flex items-center justify-center gap-2 shadow-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Siap Semua Item
+                                    </button>
                                 </div>
                             </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                        @foreach($this->allItems as $item)
+                            @php
+                                $isWaiting = $item->kitchen_status === 'waiting';
+                                $isReady = $item->kitchen_status === 'ready';
+                                $order = $item->order;
+                            @endphp
+                            <div wire:key="item-{{ $item->id }}" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                <div class="p-3 border-b border-slate-100 bg-slate-50">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-bold text-slate-800">{{ $order->table_number ? 'Meja ' . $order->table_number : 'Take Away' }}</p>
+                                            <p class="text-xs text-slate-500">{{ $order->customer_name }}</p>
+                                        </div>
+                                        <span class="text-xs text-slate-400">{{ $item->created_at->diffForHumans() }}</span>
+                                    </div>
+                                </div>
 
-                            <div class="p-2 border-t border-slate-100 bg-slate-50">
-                                @if($isWaiting)
-                                    <div class="flex gap-1">
-                                        <button wire:click="changeItemStatus({{ $item->id }}, 'ready')" class="flex-1 bg-emerald-500 text-white py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-600 transition">
-                                            ✅
-                                        </button>
-                                        <button wire:click="openRejectModal({{ $item->id }}, 'rejected')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 py-1.5 px-2 rounded-lg font-bold text-xs transition border border-rose-200">
-                                            ❌
-                                        </button>
-                                        <button wire:click="openRejectModal({{ $item->id }}, 'waste')" class="bg-orange-50 text-orange-600 hover:bg-orange-100 py-1.5 px-2 rounded-lg font-bold text-xs transition border border-orange-200">
-                                            ⚠️
-                                        </button>
+                                <div class="p-3 flex-1">
+                                    <div class="flex items-start gap-2">
+                                        <span class="font-black w-7 h-7 flex items-center justify-center rounded text-sm
+                                            {{ $isWaiting ? 'text-indigo-600 bg-indigo-50' : 'text-emerald-600 bg-emerald-100' }}">
+                                            {{ $item->quantity }}x
+                                        </span>
+                                        <div class="flex-1">
+                                            <p class="font-bold text-slate-800 text-sm">
+                                                {{ $item->product_name ?? ($item->product ? $item->product->name : 'Menu Dihapus') }}
+                                            </p>
+                                            @if($item->note)
+                                                <p class="text-xs text-slate-500 italic">📝 {{ $item->note }}</p>
+                                            @endif
+                                        </div>
                                     </div>
-                                @else
-                                    <div class="text-center py-1">
-                                        <span class="text-emerald-600 font-bold text-xs">✅</span>
-                                    </div>
-                                @endif
+                                </div>
+
+                                <div class="p-2 border-t border-slate-100 bg-slate-50">
+                                    @if($isWaiting)
+                                        <div class="flex gap-1">
+                                            <button wire:click="changeItemStatus({{ $item->id }}, 'ready')" class="flex-1 bg-emerald-500 text-white py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-600 transition shadow-sm">
+                                                ✅
+                                            </button>
+                                            <button wire:click="openRejectModal({{ $item->id }}, 'rejected')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 py-1.5 px-2 rounded-lg font-bold text-xs transition border border-rose-200 shadow-sm">
+                                                ❌
+                                            </button>
+                                            <button wire:click="openRejectModal({{ $item->id }}, 'waste')" class="bg-orange-50 text-orange-600 hover:bg-orange-100 py-1.5 px-2 rounded-lg font-bold text-xs transition border border-orange-200 shadow-sm">
+                                                ⚠️
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-1">
+                                            <span class="text-emerald-600 font-bold text-xs">✅</span>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
-                        </div>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>
+                @endif
             @else
                 <div class="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl border border-slate-200">
                     <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
